@@ -55,7 +55,8 @@ options(
    genome_build = genome_build,
    refdir = refdir
 )
-source(TEI_expression_Rscript)
+sys.source(TEI_expression_Rscript, .GlobalEnv, chdir = T)
+
 library(GenomicAlignments)
 setDTthreads(threads)
 

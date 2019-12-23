@@ -12,15 +12,12 @@
 
 require(magrittr)
 require(data.table)
-require(parallel)
+library(parallel)
+library(stringr)
 
-this <- commandArgs() %>%
-  str_extract("(?<=file=).*") %>%
-  na.omit
-thisdir <- if(length(this) == 1) {
-  dirname(this)
-} else {
-  getwd()
+thisdir <- getwd()
+if(!file.exists(file.path(thisdir, "rtea_functions.R"))) {
+  warning("It is recommended to parse this file using sys.source with chdir = T")
 }
 
 ##### reference files #####
@@ -35,7 +32,6 @@ gene_file <- file.path(refdir, "annotation_data.rds")
 rmsk_file <- file.path(refdir, "rmsk.rds")
 refTEfa <- getOption("refTEfa", file.path(refdir, "consensus_L1_ALU_SVA_HERV.fa"))
 # if(is.null(refTEfa)) refTEfa <- "/home/bl177/rnatea/ref/hg38.RepeatMasker-4.0.6-Dfam-2.0.fa"
-
 
 ##### functions #####
 sacct <- function(start_date){
@@ -71,7 +67,7 @@ sacct <- function(start_date){
 reattach <- function() {
   if(!exists("TEI")) TEI <- new.env()
   if("TEI" %in% search()) detach(TEI)
-  sys.source("/n/data1/bch/genetics/lee/boram/rnatea/scripts/rtea_functions_190624.R", TEI)
+  sys.source(file.path(thisdir, "rtea_functions.R"), TEI, chdir = T)
   attach(TEI)
 }
 
