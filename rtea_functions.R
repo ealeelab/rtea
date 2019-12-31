@@ -905,14 +905,18 @@ localHardClip <- function(rtea,
   if(any(hclipped)){
     gr <- GRanges(pastechr(rtea$chr[hclipped]), IRanges(st[hclipped], en[hclipped]), "*")
     overlap <- findOverlaps(gr, annodata, ignore.strand = T)
-    overlapdt <- data.table(idx = queryHits(overlap),
-                            type = annodata$type[subjectHits(overlap)],
-                            transcript = annodata$transcript_id[subjectHits(overlap)])
-    whichenst <- overlapdt[, .N, .(idx, transcript)][order(idx, -N, transcript)][, .SD[1], by = idx]
-    whichenst <- whichenst[match(seq_len(max(whichenst$idx)), idx), transcript]
-    numint <- overlapdt[, .(num_intron = sum(type[transcript == whichenst[idx]] == "exon", na.rm = T)), by = idx]
-    salign$hardNumIntron <- numint[match(seq_len(n), which(hclipped)[idx]), num_intron]
-    salign[is.na(hardNumIntron) & !is.na(hardstart), hardNumIntron := 0]
+    if(length(overlap) == 0) {
+      salign[, hardNumIntron := NA_integer_]
+    } else {
+      overlapdt <- data.table(idx = queryHits(overlap),
+                              type = annodata$type[subjectHits(overlap)],
+                              transcript = annodata$transcript_id[subjectHits(overlap)])
+      whichenst <- overlapdt[, .N, .(idx, transcript)][order(idx, -N, transcript)][, .SD[1], by = idx]
+      whichenst <- whichenst[match(seq_len(max(whichenst$idx)), idx), transcript]
+      numint <- overlapdt[, .(num_intron = sum(type[transcript == whichenst[idx]] == "exon", na.rm = T)), by = idx]
+      salign$hardNumIntron <- numint[match(seq_len(n), which(hclipped)[idx]), num_intron]
+      salign[is.na(hardNumIntron) & !is.na(hardstart), hardNumIntron := 0]
+    }
   } else {
     salign[, hardNumIntron := NA_integer_]
   }
