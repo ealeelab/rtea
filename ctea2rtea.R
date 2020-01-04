@@ -38,7 +38,7 @@ option_list <- list(
   make_option(c("-t", "--threads"), type = "integer", default = 2, help = "number of threads"),
   make_option(c("--build"), default = "hg19", help = "reference genome build"),
   make_option(c("--rtea"), default = file.path(thisdir, "rtea_functions.R"), help = "rtea Rscript file"),
-  make_option(c("--refdir"), default = "/home/bl177/lee/boram/rnatea/ref", help = "directory containing reference files")
+  make_option(c("--refdir"), help = "directory containing reference files")
 )
 opt <- parse_args(OptionParser(option_list = option_list))
 cteafile <- opt$ctea
@@ -49,6 +49,8 @@ threads <- opt$threads
 genome_build <- opt$build
 TEI_expression_Rscript <- opt$rtea
 refdir <- opt$refdir
+if(is.null(refdir)) refdir <- file.path(thisdir, "ref", genome_build)
+
 
 options(
    threads = threads,

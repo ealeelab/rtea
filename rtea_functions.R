@@ -9,6 +9,7 @@
 # 191129 - considering same clipped seq also as possible duplicate
 # 191204 - not filtering polyA when reading ctea file (readctea function)
 # 191223 - converted gtf files to rds files to reduce file size.
+# 200103 - before removing duplicate reads, filter out the reads of which start(ori == f) or end(ori == r) site is too far away.
 
 require(magrittr)
 require(data.table)
@@ -335,6 +336,7 @@ getClippedReads <- function(bamfile, chr, pos, ori = c("f", "r"),
   
   if(ori == "f") {
     # deduplication
+    sam <- sam[start(sam) > pos - qwidth(sam)]
     secondary <- bamFlagTest(mcols(sam)$flag, "isSecondaryAlignment")
     split <- grepl("^[0-9]+S", cigar(sam))
     othersplit <- grepl("S$", cigar(sam))
@@ -364,6 +366,7 @@ getClippedReads <- function(bamfile, chr, pos, ori = c("f", "r"),
     
   } else if(ori == "r") {
     # deduplication
+    sam <- sam[end(sam) < pos + qwidth(sam)]
     secondary <- bamFlagTest(mcols(sam)$flag, "isSecondaryAlignment")
     split <- grepl("S$", cigar(sam))
     othersplit <- grepl("^[0-9]+S", cigar(sam))
@@ -472,6 +475,27 @@ consensusClip <- function(bamfile, chr, pos, ori, searchWidth = 10) {
   }
 }
 
+TEalignScore <- function(seq, TEfamily) {
+  if(length(seq) == 0) return(numeric(0))
+  stopifnot(length(TEfamily) == 1)
+  library(Biostrings)
+  fa <- readDNAStringSet(refTEfa)
+  names(fa) %<>% sub("\\s.*", "", .)
+  if(!TEfamily %in% names(fa)) return(NA)
+  fa %<>% .[[TEfamily]]
+  fscore <- pairwiseAlignment(seq, fa, type = "global-local") %>%
+    sapply(score)
+  rscore <- DNAStringSet(seq) %>%
+    reverseComplement %>%
+    pairwiseAlignment(fa, type = "global-local") %>%
+    sapply(score)
+  if(sum(fscore) > sum(rscore)) {
+    fscore
+  } else {
+    rscore
+  }
+}
+
 cntFilter.ctea <- function(ctea,
                            trueCntCutoff = 2,
                            uniqueCntCutoff = 2,
@@ -480,7 +504,8 @@ cntFilter.ctea <- function(ctea,
                            wrongPosCutoff = 2,
                            bothClipPropCutoff = 0.2,
                            secondaryCutoff = 0.99,
-                           TEscoreCutoff = 30) {
+                           TEscoreCutoff = 30,
+                           nonspecificTEcutoff = 0) {
   if(!exists("Filter", ctea)) {
     ctea[, Filter := ""] 
   }
@@ -492,6 +517,7 @@ cntFilter.ctea <- function(ctea,
   ctea[bothClip / matchCnt > bothClipPropCutoff, Filter := paste(Filter, "pseudoMap", sep=";")]
   ctea[secondary >= secondaryCutoff, Filter := paste(Filter, "secondary", sep=";")]
   ctea[TEscore <= TEscoreCutoff, Filter := paste(Filter, "lowTEscore", sep = ";")]
+  ctea[nonspecificTE >= nonspecificTEcutoff, Filter := paste(Filter, "nonspecificTE", sep = ";")]
   ctea[, Filter := sub("^;", "", Filter)]
   ctea[Filter == "", Filter := "PASS"]
   ctea
@@ -526,18 +552,19 @@ countClippedReads.ctea <- function(ctea,
       overhang = integer(0),
       gap = integer(0),
       secondary = numeric(0),
-      editDistance = numeric(0)
+      editDistance = numeric(0),
+      nonspecificTE = numeric(0)
     ) )
   }
   writeLines("Counting clipped reads...")
   lcnt <- mcmapply(
     seq_len(n), 
     bamfile,
-    ctea$chr, ctea$pos, ctea$ori, ctea$seq,
+    ctea$chr, ctea$pos, ctea$ori, ctea$seq, ctea$family,
     mc.cores = threads, 
     mc.preschedule = T, 
     SIMPLIFY = F,
-    FUN = function(i, bamfile, chr, pos, ori, seq) {
+    FUN = function(i, bamfile, chr, pos, ori, seq, family) {
       if(n > 10) cat(sprintf("\r%0.2f%%              ", i/n*100))
       if(anyNA(c(chr, pos, ori, seq))) {
         return(list(
@@ -556,7 +583,8 @@ countClippedReads.ctea <- function(ctea,
           overhang = NA_integer_,
           gap = NA_integer_,
           secondary = NA_real_,
-          editDistance = NA_real_
+          editDistance = NA_real_,
+          nonspecificTE = NA_real_
         ))
       }
       sam <- getClippedReads(bamfile, chr, pos, ori, searchWidth)
@@ -573,6 +601,7 @@ countClippedReads.ctea <- function(ctea,
       mateOverlap <- meta$mpos %between% list(start(sam), end(sam))
       isOverClip <- isProperPair & !mateOverlap & isMateSide & isMatch & !isPolyA
       possibleDup <- duplicated(paste(nchar(meta$sseq), meta$mpos)) | duplicated(meta$sseq)
+      isTEread <- TEalignScore(mcols(sam)$seq, family)
       list(
         matchCnt = sum(isMatch),
         trueCnt = sum(isMatch & !bothClip & !shortClip & !isPolyA), 
@@ -589,7 +618,8 @@ countClippedReads.ctea <- function(ctea,
         overhang = suppressWarnings(median(meta$overhang[isMatch])),
         gap = suppressWarnings(median(meta$gap[isMatch])),
         secondary = mean(isSecondary[isMatch]),
-        editDistance = mean(meta$NM[isMatch])
+        editDistance = mean(meta$NM[isMatch]),
+        nonspecificTE = mean(isTEread[isMatch])
       )
     }
   )
@@ -665,6 +695,12 @@ countBothClippedReads <- function(chr,
   data.table(fcnt, rcnt[, !"chr"])
 }
 
+ungapPos <- function(rtea, overhangmin = 5) {
+  cpdt <- rtea[]
+  cpdt[ori == "f" & overhang <= overhangmin, pos := pos + gap]
+  cpdt[ori == "r" & overhang <= overhangmin, pos := pos - gap]
+  cpdt
+}
 
 matchScallop.ctea <- function(ctea, scallopfile, matchrange = 300, overhangmin = 5) {
   require(rtracklayer)
@@ -1059,4 +1095,20 @@ IGVsnapshot.rnatea <- function(rnatea, outdir, bamfiles, wgsbamfiles = NULL) {
   close(con)
   # system(paste("java -jar $IGV/igv.jar -b", igvbat))
   system(paste("xvfb-run igv -b", igvbat))
+}
+
+readFastp <- function(fastpfiles) {
+  require(data.table)
+  require(rjson)
+  lapply(fastpfiles, function(x) {
+    qclist <- fromJSON(file = x)
+    qc <- qclist$summary$before_filtering
+    qc %<>% {c(.,
+               filtered_reads = .[["total_reads"]] - qclist$summary$after_filtering$total_reads,
+               dup_rate = qclist$duplication$rate,
+               trimmed_reads = qclist$adapter_cutting$adapter_trimmed_reads,
+               trimmed_bases = qclist$adapter_cutting$adapter_trimmed_bases,
+               insert_size = qclist$insert_size$peak
+    )}
+  }) %>% rbindlist
 }
