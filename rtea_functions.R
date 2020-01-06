@@ -499,9 +499,9 @@ TEalignScore <- function(seq, TEfamily) {
 cntFilter.ctea <- function(ctea,
                            trueCntCutoff = 2,
                            uniqueCntCutoff = 2,
-                           falseCntCutoff = 10,
+                           falseCntRatioCutoff = 3,
                            baseQualCutoff = 25,
-                           wrongPosCutoff = 2,
+                           wrongPosPropCutoff = 0.2,
                            bothClipPropCutoff = 0.2,
                            secondaryCutoff = 0.99,
                            TEscoreCutoff = 30,
@@ -511,9 +511,9 @@ cntFilter.ctea <- function(ctea,
   }
   ctea[trueCnt <= trueCntCutoff | uniqueCnt <= uniqueCntCutoff, 
        Filter := paste(Filter, "lowCnt", sep=";")]
-  ctea[falseCnt >= falseCntCutoff, Filter := paste(Filter, "noisy", sep=";")]
+  ctea[falseCnt / trueCnt >= falseCntRatioCutoff, Filter := paste(Filter, "noisy", sep=";")]
   ctea[baseQual <= baseQualCutoff, Filter := paste(Filter, "lowPhred", sep=";")]
-  ctea[anyWrongPos >= wrongPosCutoff, Filter := paste(Filter, "badMap", sep=";")]
+  ctea[anyWrongPos / matchCnt >= wrongPosPropCutoff, Filter := paste(Filter, "badMap", sep=";")]
   ctea[bothClip / matchCnt > bothClipPropCutoff, Filter := paste(Filter, "pseudoMap", sep=";")]
   ctea[secondary >= secondaryCutoff, Filter := paste(Filter, "secondary", sep=";")]
   ctea[TEscore <= TEscoreCutoff, Filter := paste(Filter, "lowTEscore", sep = ";")]
