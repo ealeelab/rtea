@@ -6,7 +6,7 @@ using namespace std;
 using namespace BamTools;
 
 int sort(string clipped_filename){
-	string cmd_sort = "sort -ug -k1 -k2 " + clipped_filename + " -o " + clipped_filename + "-sorted";
+	string cmd_sort = "sort -g -k1 -k2 " + clipped_filename + " | uniq > " + clipped_filename + "-sorted";
 	cout << "Sorting " << clipped_filename << "\n";
 	return system(cmd_sort.c_str());
 }

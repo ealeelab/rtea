@@ -12,12 +12,12 @@ RESUME=${8:-"overwrite"}
 FQQC=${OUT_DIR}/bam/${PREFIX}.fastp.json
 BAM=${OUT_DIR}/bam/${PREFIX}.hisat2.bam
 SCALLOP_OUTPUT=${OUT_DIR}/bam/${PREFIX}.scallop.gtf
-CTEA_OUTPUT=${OUT_DIR}/ctea/${PREFIX}.hisat2.bam.ctea
+CTEA_PREFIX=${OUT_DIR}/ctea/${PREFIX}
 RTEA_OUTPUT=${OUT_DIR}/rtea/${PREFIX}.rtea.txt
 
 THIS_DIR=`dirname $(readlink -f $0)`
 HISAT_SCRIPT=$THIS_DIR/HISAT2_TE.sh
-CTEA_SCRIPT=$THIS_DIR/ctea_br.sh
+CTEA_SCRIPT=$THIS_DIR/run_ctea.R
 RTEA_SCRIPT=$THIS_DIR/ctea2rtea.R
 REF_DIR=$THIS_DIR/ref/$BUILD
 
@@ -42,12 +42,13 @@ SCALLOP_CMD="scallop $nl
   -i $BAM $nl
   -o $SCALLOP_OUTPUT"
 
-CTEA_CMD="$CTEA_SCRIPT \\\\\n
-   $BAM \\\\\n
-   $OUT_DIR/ctea"
+CTEA_CMD="$CTEA_SCRIPT $nl\
+   -b $BAM $nl
+   -o $CTEA_PREFIX $nl
+   -t $THREADS"
 
 RTEA_CMD="Rscript $RTEA_SCRIPT \\\\\n
-   -c $CTEA_OUTPUT \\\\\n
+   -c ${CTEA_PREFIX}.ctea \\\\\n
    -b $BAM \\\\\n
    -s $SCALLOP_OUTPUT $nl
    -o $RTEA_OUTPUT $nl

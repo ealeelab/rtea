@@ -1,21 +1,29 @@
 library(data.table)
 library(magrittr)
-library(Rcpp)
+require(Rcpp)
+
+thisdir <- getwd()
+if(!file.exists(file.path(thisdir, "ctea_functions.R"))) {
+  warning("It is recommended to parse this file using sys.source with chdir = T")
+}
+
 bamtoolsinclude <- "/home/boramlee/tools/bamtools-2.5.1/include/bamtools"
 bamtoolslib <- "/data2/boramlee/tools/bamtools-2.5.1/lib64"
-clipcpp <- "/home/boramlee/scripts/rtea/clippedSequence.cpp"
-combinecpp <- "/home/boramlee/scripts/rtea/combineNeighbor.cpp"
-awkfile <- "/home/boramlee/scripts/rtea/teaify-0.7-no-combine.awk"
-Sys.setenv(
-  PKG_CXXFLAGS = paste0("-I", bamtoolsinclude),
-  PKG_LIBS = paste0("-L", bamtoolslib, " -lbamtools")
-)
+clipcpp <- file.path(thisdir, "clippedSequence.cpp")
+combinecpp <- file.path(thisdir, "combineNeighbor.cpp")
+awkfile <- file.path(thisdir, "teaify-0.7-no-combine.awk")
+if(!exists("refFa"))
+  refFa <- file.path(thisdir, "../ref/ctea/repeat_LINE1_ALU_SVA_HERV_human_youngTE.fa")
+if(!grepl("bamtools", Sys.getenv("PKG_CXXFLAGS"))) 
+  Sys.setenv(PKG_CXXFLAGS = paste0("-I", bamtoolsinclude))
+if(!grepl("bamtools", Sys.getenv("PKG_LIBS"))) 
+  Sys.setenv(PKG_LIBS = paste0("-L", bamtoolslib, " -lbamtools"))
 dyn.load(file.path(bamtoolslib, "libbamtools.so"))
 sourceCpp(clipcpp)
 sourceCpp(combinecpp)
 
 
-ctea <- function(bamfile, outprefix, refFa, threads = 2, removetmp = T) {
+runctea <- function(bamfile, outprefix, refFa = refFa, threads = 2, removetmp = T) {
   setDTthreads(threads)
   tmpdir <- paste0(outprefix, ".tmp")
   dir.create(tmpdir, recursive = T)
