@@ -87,7 +87,7 @@ readctea <- function(cteafile, count_cutoff = 3, confidence_cutoff = 2, threads 
                   "'",
                   # "&& $5 != \"PolyA\"'", 
                   cteafile)
-  ctea <- fread(cmd = awkcmd)
+  ctea <- fread(cmd = awkcmd, sep = "\t")
   setnames(ctea, 
            c("chr", "pos", "ori", "cnt", "family", "confidence",
              "moreFamily", "seq", "morePos", "moreSeq"))
@@ -484,11 +484,11 @@ TEalignScore <- function(seq, TEfamily) {
   if(!TEfamily %in% names(fa)) return(NA)
   fa %<>% .[[TEfamily]]
   fscore <- pairwiseAlignment(seq, fa, type = "global-local") %>%
-    sapply(score)
+    score
   rscore <- DNAStringSet(seq) %>%
     reverseComplement %>%
     pairwiseAlignment(fa, type = "global-local") %>%
-    sapply(score)
+    score
   if(sum(fscore) > sum(rscore)) {
     fscore
   } else {
@@ -627,11 +627,14 @@ countClippedReads.ctea <- function(ctea,
   tryCatch(
     cntdt <- rbindlist(lcnt),
     error = function(e) {
-      nelem <- sapply(lcnt, function(x) length(unlist(x)))
-      if(any(nelem != 15)) {
-        message("Missing element in row number: ", 
-                toString(which(nelem != 15))
-        )
+      # nelem <- sapply(lcnt, function(x) length(unlist(x)))
+      # if(any(nelem != 15)) {
+      #   message("Missing element in row number: ", 
+      #           toString(which(nelem != 15))
+      #   )
+      ismsg <- sapply(lcnt, class) == "character"
+      if(any(ismsg)) {
+        message(lcnt[ismsg] %>% unlist %>%  unique %>% paste(collapse = "\n"))
       }
       e
     }
