@@ -102,7 +102,7 @@ void clip(string bam_filename, string out_prefix, int minimum_read_length = 5) {
 			int n_in = 0;
 
 			for (auto cigar : al.CigarData) {
-				if ('D' == cigar.Type) {
+				if ('D' == cigar.Type || 'N' == cigar.Type) {
 					n_del += cigar.Length;
 				} else if ('I' == cigar.Type) {
 					n_in += cigar.Length;

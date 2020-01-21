@@ -284,7 +284,7 @@ filterNoClip.ctea <- function(ctea, similarity_cutoff = 75, threads = getDTthrea
   ctea[, start := start + overstart]
   ctea[, end := end - overend]
   refseq <- ctea[, getSeq(genome, pastechr(chr), start, end)]
-  refseq <- paste0(str_dup("N", overstart), refseq, str_dup("N", overend))
+  refseq <- paste0(stringr::str_dup("N", overstart), refseq, stringr::str_dup("N", overend))
   n <- nrow(ctea)
   writeLines("Comparing clipped sequences with reference sequences...")
   similar <- mclapply(
