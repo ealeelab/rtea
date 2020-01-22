@@ -71,7 +71,7 @@ void combine(string input_filename, string output_filename, char f_or_r, int64_t
 					} else {
 						clv = '0';
 					}
-				  combined << refID << "\t" << pos_longbase << "\t" << f_or_r << "\t" << count << "\t";
+				  combined << prev_refID << "\t" << pos_longbase << "\t" << f_or_r << "\t" << count << "\t";
 					combined << family_longbase << "\t" << clv << "\t" << more_family_longbase << "\t";
 					combined << base_longest << "\t" << pos_combined << "\t" << base_combined << "\n";
 				}
