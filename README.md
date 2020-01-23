@@ -8,7 +8,9 @@ RNA-TE fusion finder
 3. [samtools](http://www.htslib.org/)
 4. [scallop](https://github.com/Kingsford-Group/scallop)
 5. [bamtools](https://github.com/pezmaster31/bamtools)
-6. R packages
+6. [bwa](http://bio-bwa.sourceforge.net/)
+7. [awk](https://www.gnu.org/software/gawk/)
+7. R packages
    * magrittr
    * data.table
    * stringr

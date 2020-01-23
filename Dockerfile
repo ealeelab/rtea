@@ -2,7 +2,12 @@ FROM r-base:3.6.2
 MAINTAINER Boram Lee
 
 ENV LD_LIBRARY_PATH=/usr/local/lib
-RUN apt-get update && apt-get install -y cmake
+RUN apt-get update && apt-get install -y \
+    cmake \
+    libxml2-dev \
+    libcurl4-openssl-dev \
+    libboost-dev \
+    gawk
 WORKDIR /app
 
 # fastp
@@ -54,10 +59,16 @@ RUN wget https://github.com/pezmaster31/bamtools/archive/v2.5.1.tar.gz \
 ENV PKG_CXXFLAGS="-I/usr/local/include/bamtools"
 ENV PKG_LIBS="-L/usr/local/lib -lbamtools"
 
+# bwa
+RUN wget https://github.com/lh3/bwa/releases/download/v0.7.17/bwa-0.7.17.tar.bz2 \
+    && tar -xjf bwa-0.7.17.tar.bz2 \
+    && cd bwa-0.7.17 \
+    && make \
+    && cd /app \
+    && rm bwa-0.7.17.tar.bz2
+ENV PATH=/app/bwa-0.7.17:$PATH
+
 # R packages
-RUN apt-get install -y \
-    libxml2-dev \
-    libcurl4-openssl-dev
 RUN R -e "install.packages(c( \
             'magrittr', \
             'data.table', \
@@ -72,6 +83,6 @@ RUN R -e "install.packages(c( \
             'BSgenome.Hsapiens.UCSC.hg38' \
           ))"
 
+# rtea
 COPY . rtea/
 ENV PATH=/app/rtea:$PATH
-RUN apt-get install -y libboost-dev
