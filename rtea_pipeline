@@ -13,6 +13,7 @@ FQQC=${OUT_DIR}/bam/${PREFIX}.fastp.json
 BAM=${OUT_DIR}/bam/${PREFIX}.hisat2.bam
 SCALLOP_OUTPUT=${OUT_DIR}/bam/${PREFIX}.scallop.gtf
 CTEA_PREFIX=${OUT_DIR}/ctea/${PREFIX}
+CTEA_OUTPUT=${CTEA_PREFIX}.ctea
 RTEA_OUTPUT=${OUT_DIR}/rtea/${PREFIX}.rtea.txt
 
 THIS_DIR=`dirname $(readlink -f $0)`
@@ -42,13 +43,13 @@ SCALLOP_CMD="scallop $nl
   -i $BAM $nl
   -o $SCALLOP_OUTPUT"
 
-CTEA_CMD="$CTEA_SCRIPT $nl
+CTEA_CMD="Rscript $CTEA_SCRIPT $nl
    -b $BAM $nl
    -o $CTEA_PREFIX $nl
    -t $THREADS"
 
 RTEA_CMD="Rscript $RTEA_SCRIPT \\\\\n
-   -c ${CTEA_PREFIX}.ctea \\\\\n
+   -c $CTEA_OUTPUT \\\\\n
    -b $BAM \\\\\n
    -s $SCALLOP_OUTPUT $nl
    -o $RTEA_OUTPUT $nl
