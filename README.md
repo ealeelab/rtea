@@ -1,4 +1,4 @@
-RTEA 
+RTEA
 ====
 RNA-TE fusion finder
 
@@ -7,12 +7,13 @@ RNA-TE fusion finder
 2. [hisat2](https://ccb.jhu.edu/software/hisat2/index.shtml)
 3. [samtools](http://www.htslib.org/)
 4. [scallop](https://github.com/Kingsford-Group/scallop)
-5. R packages
+5. [bamtools](https://github.com/pezmaster31/bamtools)
+6. R packages
    * magrittr
    * data.table
    * stringr
    * optparse
-   * rtracklayer
+   * Rcpp
    * GenomicAlignments
    * BSgenome.Hsapiens.UCSC.hg19
    * BSgenome.Hsapiens.UCSC.hg38

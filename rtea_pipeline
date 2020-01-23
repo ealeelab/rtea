@@ -42,7 +42,7 @@ SCALLOP_CMD="scallop $nl
   -i $BAM $nl
   -o $SCALLOP_OUTPUT"
 
-CTEA_CMD="$CTEA_SCRIPT $nl\
+CTEA_CMD="$CTEA_SCRIPT $nl
    -b $BAM $nl
    -o $CTEA_PREFIX $nl
    -t $THREADS"
@@ -55,7 +55,7 @@ RTEA_CMD="Rscript $RTEA_SCRIPT \\\\\n
    --build $BUILD $nl
    --refdir $REF_DIR $nl
    -t $THREADS"
-   
+
 RunCMD() {
   OUTFILE=$1
   if [[ $RESUME = resume && -s $OUTFILE && -e ${OUTFILE}.done ]]
@@ -67,7 +67,7 @@ RunCMD() {
   shift
     rm -f ${OUTFILE}.fail ${OUTFILE}.done
   CMD=$@
-  echo 
+  echo
   echo [`date`]
   echo -e $CMD
   ${CMD//\\\\\\n/}
@@ -99,4 +99,3 @@ RunCMD $RTEA_OUTPUT $RTEA_CMD
 echo
 
 echo DONE.
-
