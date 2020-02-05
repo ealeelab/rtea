@@ -5,12 +5,21 @@ using namespace Rcpp;
 using namespace std;
 using namespace BamTools;
 
-int sort(string clipped_filename){
-	string cmd_sort = "sort -g -k1 -k2 " + clipped_filename + " | uniq > " + clipped_filename + "-sorted";
-	cout << "Sorting " << clipped_filename << "\n";
-	return system(cmd_sort.c_str());
-}
+int sort(string clipped_filename, unsigned threads = 2){
+	string cmd_pre = "sort -g -k1 -k2 " + clipped_filename;
+	string cmd_post = " | uniq > " + clipped_filename + "-sorted";
+	string cmd_sort = cmd_pre + cmd_post;
+	string cmd_sort_parallel = cmd_pre + " --parallel=" + to_string(threads) + cmd_post;
 
+  cout << "Sorting " << clipped_filename << "\n";
+	int value = system(cmd_sort_parallel.c_str());
+	if (value != 0) {
+		cout << "Sorting with single thread" << "\n";
+		value = system(cmd_sort.c_str());
+	}
+
+	return value;
+}
 // [[Rcpp::plugins(cpp11)]]
 
 // [[Rcpp::export]]
@@ -34,7 +43,7 @@ NumericVector get_refName(string bam_filename) {
 }
 
 // [[Rcpp::export]]
-void clip(string bam_filename, string out_prefix, int minimum_read_length = 5) {
+void clip(string bam_filename, string out_prefix, int minimum_read_length = 5, unsigned threads = 2) {
 	cout << "Clipping Reads\n";
 
 	BamReader reader;
@@ -125,6 +134,6 @@ void clip(string bam_filename, string out_prefix, int minimum_read_length = 5) {
 	cout << "Closing " << r_clipped_filename << "\n";
 	r_clipped.close();
 
-	sort(f_clipped_filename);
-	sort(r_clipped_filename);
+	sort(f_clipped_filename, threads);
+	sort(r_clipped_filename, threads);
 }

@@ -43,7 +43,7 @@ runctea <- function(bamfile, outprefix, refFa = refFa, threads = 2, removetmp = 
   combined_r <- file.path(tmpdir, "05-combined-r")
   cteafile <- paste0(outprefix, ".ctea")
   
-  clip(bamfile, clipprefix)
+  clip(bamfile, clipprefix, threads = threads)
   contigen(clipped_f, contigs_f)
   contigen(clipped_r, contigs_r)
   bwa_aln(refFa, contigs_f, sam_f, threads = threads)
