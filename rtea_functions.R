@@ -520,6 +520,8 @@ cntFilter.ctea <- function(ctea,
   ctea[nonspecificTE >= nonspecificTEcutoff, Filter := paste(Filter, "nonspecificTE", sep = ";")]
   ctea[, Filter := sub("^;", "", Filter)]
   ctea[Filter == "", Filter := "PASS"]
+  ctea[, Filter := sapply(strsplit(Filter, ";"), 
+                          function(x) paste(unique(x), collapse = ";"))]
   ctea
 }
 

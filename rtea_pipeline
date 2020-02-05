@@ -23,7 +23,6 @@ RTEA_SCRIPT=$THIS_DIR/ctea2rtea.R
 REF_DIR=$THIS_DIR/ref/$BUILD
 
 mkdir -p $OUT_DIR
-mkdir -p $OUT_DIR/fastq
 mkdir -p $OUT_DIR/bam
 mkdir -p $OUT_DIR/ctea
 mkdir -p $OUT_DIR/rtea

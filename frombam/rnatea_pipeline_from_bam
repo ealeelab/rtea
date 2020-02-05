@@ -1,0 +1,78 @@
+#!/bin/bash
+
+INPUT_BAM=$1
+PREFIX=$2
+HISAT_REF=$3
+THREADS=$4
+OUT_DIR=${5:-$PWD}
+BUILD=${6:="hg38"}
+RESUME=${7:-"overwrite"}
+
+R1=${OUT_DIR}/fastq/${PREFIX}.1.fq
+R2=${OUT_DIR}/fastq/${PREFIX}.2.fq
+FQQC=${OUT_DIR}/bam/${PREFIX}.fastp.json
+BAM=${OUT_DIR}/bam/${PREFIX}.hisat2.bam
+SCALLOP_OUTPUT=${OUT_DIR}/bam/${PREFIX}.scallop.gtf
+CTEA_OUTPUT=${OUT_DIR}/ctea/${PREFIX}.hisat2.bam.ctea
+RTEA_OUTPUT=${OUT_DIR}/rtea/${PREFIX}.rtea.txt
+
+PICARD=/app/picard.jar
+RNATEA_PIPELINE=rtea_pipeline
+
+mkdir -p $OUT_DIR
+mkdir -p $OUT_DIR/fastq
+
+cp $0 $OUT_DIR/$(basename ${0%.sh})_$(date +"%y%m%d%H").sh
+
+nl="\\\\\n"
+SAMTOFQ_CMD="java -jar $PICARD $nl
+   SamToFastq $nl
+   INPUT=$INPUT_BAM $nl
+   FASTQ=$R1 $nl
+   SECOND_END_FASTQ=$R2"
+
+RNATEA_CMD="$RNATEA_PIPELINE $nl
+   $R1 $nl
+   $R2 $nl
+   $PREFIX $nl
+   $HISAT_REF $nl
+   $THREADS $nl
+   $OUT_DIR $nl
+   $BUILD $nl
+   $RESUME"
+
+RunCMD() {
+  OUTFILE=$1
+  if [[ $RESUME = resume && -s $OUTFILE && -e ${OUTFILE}.done ]]
+  then
+    echo
+    echo $OUTFILE exists. Skip.
+    return 0
+  fi
+  shift
+    rm -f ${OUTFILE}.fail ${OUTFILE}.done
+  CMD=$@
+  echo
+  echo [`date`]
+  echo -e $CMD
+  ${CMD//\\\\\\n/}
+  ES=$?
+  echo
+  echo "Exit status: $ES"
+  if [ $ES -ne 0 -o ! -s $OUTFILE ]
+  then
+    echo -d $CMD > ${OUTFILE}.fail
+    exit $ES
+  fi
+    echo -d $CMD > ${OUTFILE}.done
+  return $ES
+}
+
+LINE="---------------"
+echo
+echo ${LINE}SamToFastq${LINE}
+RunCMD $R1 $SAMTOFQ_CMD
+echo
+echo ${LINE}
+RunCMD $RTEA_OUTPUT $RNATEA_CMD
+echo DONE.
