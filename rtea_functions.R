@@ -201,7 +201,7 @@ polyTElocation.ctea <- function(ctea, clip_width = 5) {
 }
 
 repeatLocation <- function(chr, start, end = start) {
-  require(rtracklayer)
+  # require(rtracklayer)
   # rmsk <- import(rmsk_gtf_file, "gtf")
   rmsk <- readRDS(rmsk_file)
   rmsk$family[is.na(rmsk$family)] <- rmsk$class[is.na(rmsk$family)]
@@ -700,11 +700,13 @@ countBothClippedReads <- function(chr,
   data.table(fcnt, rcnt[, !"chr"])
 }
 
-ungapPos <- function(rtea, overhangmin = 5) {
-  cpdt <- rtea[]
-  cpdt[ori == "f" & overhang <= overhangmin, pos := pos + gap]
-  cpdt[ori == "r" & overhang <= overhangmin, pos := pos - gap]
-  cpdt
+ungapPos.rtea <- function(rtea, overhang_cutoff = 5L) {
+  ungappos <- rtea$pos
+  fover <- rtea[, which(ori == "f" & overhang <= overhang_cutoff)]
+  ungappos[fover] <- rtea[fover, pos + gap]
+  rover <- rtea[, which(ori == "r" & overhang <= overhang_cutoff)]
+  ungappos[rover] <- rtea[rover, pos - gap]
+  ungappos
 }
 
 matchScallop.ctea <- function(ctea, scallopfile, matchrange = 300, overhangmin = 5) {
@@ -749,10 +751,9 @@ nearbyfusions <- function(ctea, matchrange = 10000, maxTSD = 10, overhangmin = 5
   
 }
 
-
 geneticLocation <- function(chr, start, end = start) {
-  require(rtracklayer)
-  writeLines(paste("Importing", gene_file))
+  # require(rtracklayer)
+  # writeLines(paste("Importing", gene_file))
   # annodata <- import(gene_file, "gtf")
   annodata <- readRDS(gene_file)
   writeLines("Location idenfying")
@@ -799,15 +800,16 @@ annotate.ctea <- function(ctea,
                           junction_width = 5,
                           overhang_cutoff = junction_width
                  ) {
-  require(rtracklayer)
-  writeLines(paste("Importing", gene_file))
+  # require(rtracklayer)
+  # writeLines(paste("Importing", gene_file))
   # annodata <- import(gene_file, "gtf")
   annodata <- readRDS(gene_file)
   seqlevels(annodata) %<>% pastechr
   annodata$exon_number <- as.integer(annodata$exon_number)
   writeLines("Annotating TEI.")
   txannodata <- subset(annodata, type != "gene") 
-  cgr <- ctea[, GRanges(pastechr(chr), IRanges(pos, width=1), c(r = "+", f = "-")[ori])]
+  ungappos <- ungapPos.rtea(ctea, overhang_cutoff)
+  cgr <- ctea[, GRanges(pastechr(chr), IRanges(ungappos, width=1), c(r = "+", f = "-")[ori])]
   overlaptx <- findOverlaps(cgr, txannodata, ignore.strand = T)
   selectAnnodata <- function(overlap, data) {
     matchdata <- data.table(idx = queryHits(overlap),
@@ -847,12 +849,6 @@ annotate.ctea <- function(ctea,
   acmatch <- selectAnnodata(overlapac, splacceptor)
   anno[acmatch$idx] <- acmatch[, !"idx"]
   rm(splacceptor)
-  
-  shortOH <- ctea$overhang <= overhang_cutoff & !is.na(anno$exon_number) 
-  upward <- anno$strand == c(f = "-", r = "+")[ctea$ori]
-  anno[shortOH & upward & (type == "exon" | type == "3UTR"), exon_number := exon_number - 1L]   
-  anno[shortOH & upward, type := "splice_donor"]
-  anno[shortOH & !upward, type := "splice_acceptor"]
   
   anno[!is.na(exon_number), type_number := paste(type, exon_number, sep="_")]
   anno[, geneSide := ifelse(xor(ctea$ori == "f", strand == "+"), "5", "3")]
@@ -933,8 +929,8 @@ localHardClip <- function(rtea,
   salign[score >= score_cutoff, hardTE := reploc[[2]]]
   salign[, hardDist := ifelse(rtea$ori == "f", searchend - hardend, hardstart - searchstart)]
   
-  require(rtracklayer)
-  writeLines(paste("Importing", gene_file))
+  # require(rtracklayer)
+  # writeLines(paste("Importing", gene_file))
   # annodata <- import(gene_file, "gtf")
   annodata <- readRDS(gene_file)
   seqlevels(annodata) %<>% pastechr
