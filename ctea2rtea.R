@@ -71,10 +71,11 @@ ctea <- readctea(cteafile, threads = threads) %>%
 ctea %<>% .[isPolyA | TEscore > 0, ]
 ctea %<>% countClippedReads.ctea(bamfile, threads = threads)
 rtea <- ctea[trueCnt >= 3 | (isPolyA & polyAcnt >=3), ]
-rtea %<>% cntFilter.ctea %>%
-          annotate.ctea %>%
-          polyTElocation.ctea %>%
-          localHardClip
+rtea %<>% 
+  annotate.ctea %>%
+  polyTElocation.ctea %>%
+  localHardClip %>%
+  cntFilter.ctea
 if(!is.null(opt$scallop)) {
   rtea %<>% matchScallop.ctea(scallopfile)
 }

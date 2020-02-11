@@ -505,9 +505,12 @@ cntFilter.ctea <- function(ctea,
                            bothClipPropCutoff = 0.2,
                            secondaryCutoff = 0.99,
                            TEscoreCutoff = 30,
-                           nonspecificTEcutoff = 0) {
+                           nonspecificTEcutoff = 0,
+                           hardFilter_cutoff = 50) {
   if(!exists("Filter", ctea)) {
     ctea[, Filter := ""] 
+  } else {
+    ctea[Filter == "PASS", Filter := ""]
   }
   ctea[trueCnt <= trueCntCutoff | uniqueCnt <= uniqueCntCutoff, 
        Filter := paste(Filter, "lowCnt", sep=";")]
@@ -518,6 +521,12 @@ cntFilter.ctea <- function(ctea,
   ctea[secondary >= secondaryCutoff, Filter := paste(Filter, "secondary", sep=";")]
   ctea[TEscore <= TEscoreCutoff, Filter := paste(Filter, "lowTEscore", sep = ";")]
   ctea[nonspecificTE >= nonspecificTEcutoff, Filter := paste(Filter, "nonspecificTE", sep = ";")]
+  if(exists("hardDist", ctea)) {
+    ctea[hardDist < hardFilter_cutoff, Filter := paste(Filter, "indel", sep=";")]  
+  }
+  if(exists("hardSpl", ctea) & exists("hardTE", ctea)) {
+    ctea[!is.na(hardSpl) & !is.na(hardTE), Filter := paste(Filter, "notGapped", sep=";")]  
+  }
   ctea[, Filter := sub("^;", "", Filter)]
   ctea[Filter == "", Filter := "PASS"]
   ctea[, Filter := sapply(strsplit(Filter, ";"), 
@@ -600,7 +609,7 @@ countClippedReads.ctea <- function(ctea,
       isProperPair <- bamFlagTest(meta$flag, "isProperPair")
       mateUnmapped <- bamFlagTest(meta$flag, "hasUnmappedMate")
       isSecondary <- bamFlagTest(meta$flag, "isSecondaryAlignment")
-      mateOverlap <- meta$mpos %between% list(start(sam), end(sam))
+      mateOverlap <- meta$mpos %between% list(start(sam) - 3, end(sam) + 3)
       isOverClip <- isProperPair & !mateOverlap & isMateSide & isMatch & !isPolyA
       possibleDup <- duplicated(paste(nchar(meta$sseq), meta$mpos)) | duplicated(meta$sseq)
       isTEread <- TEalignScore(mcols(sam)$seq, family)
@@ -796,8 +805,8 @@ geneticLocation <- function(chr, start, end = start) {
 }
 
 annotate.ctea <- function(ctea,
-                          flank_width = 100000,
-                          junction_width = 5,
+                          flank_width = 100000L,
+                          junction_width = 5L,
                           overhang_cutoff = junction_width
                  ) {
   # require(rtracklayer)
@@ -888,17 +897,17 @@ localHardClip <- function(rtea,
                           mateDistMax = 100000,
                           overhangmin = 5,
                           score_cutoff = 10,
-                          hardFilter_cutoff = 50,
                           threads = getDTthreads()) {
   require(bsgenomePKG, character.only = T)
   genome <- get(bsgenomePKG)
-  searchstart <- searchend <- rtea$pos
+  searchstart <- searchend <- rtea$pos  # ungapPos.rtea(rtea)
   searchend[which(rtea$overhang < overhangmin & rtea$ori == "f")] <- rtea[overhang < overhangmin & ori == "f", pos + gap]
   searchstart[which(rtea$overhang < overhangmin & rtea$ori == "r")] <- rtea[overhang < overhangmin & ori == "r", pos - gap]
-  searchstart[rtea$ori == "f"] <- rtea[ori == "f", pmax(pos - mateDist, pos - mateDistMax, 1)]
-  searchend[rtea$ori == "r"] <- rtea[ori == "r", pos + pmin(mateDist, mateDistMax) + nchar(seq)]
+  searchstart[rtea$ori == "f"] <- rtea[ori == "f", pmax(pos - mateDist - 100, pos - mateDistMax, 1)]
+  searchend[rtea$ori == "r"] <- rtea[ori == "r", pos + pmin(mateDist + 100, mateDistMax)]
   searchend <- pmin(searchend, seqlengths(genome)[pastechr(rtea$chr)])
   refseq <- getSeq(genome, pastechr(rtea$chr), searchstart, searchend)
+  refseq %<>% DNAStringSet
   matchscore <- nucleotideSubstitutionMatrix(match = 1, mismatch = -10, baseOnly = TRUE) %>%
     cbind(N = 0) %>% 
     rbind(N = 0)
@@ -932,17 +941,19 @@ localHardClip <- function(rtea,
   # require(rtracklayer)
   # writeLines(paste("Importing", gene_file))
   # annodata <- import(gene_file, "gtf")
-  annodata <- readRDS(gene_file)
-  seqlevels(annodata) %<>% pastechr
-  st <- searchstart
-  en <- searchend
-  st[rtea$ori == "f"] <- salign$hardstart[rtea$ori == "f"]
-  en[rtea$ori == "r"] <- salign$hardend[rtea$ori == "r"]
+
   hclipped <- salign$score >= score_cutoff
+  # number of exons between mapping position and hard clip
   if(any(hclipped)){
+    annodata <- readRDS(gene_file)
+    seqlevels(annodata) %<>% pastechr
+    st <- searchstart
+    en <- searchend
+    st[rtea$ori == "f"] <- salign$hardstart[rtea$ori == "f"]
+    en[rtea$ori == "r"] <- salign$hardend[rtea$ori == "r"]
     gr <- GRanges(pastechr(rtea$chr[hclipped]), IRanges(st[hclipped], en[hclipped]), "*")
     overlap <- findOverlaps(gr, annodata, ignore.strand = T)
-    if(length(overlap) == 0) {
+    if(length(overlap) == 0) { 
       salign[, hardNumIntron := NA_integer_]
     } else {
       overlapdt <- data.table(idx = queryHits(overlap),
@@ -954,17 +965,38 @@ localHardClip <- function(rtea,
       salign$hardNumIntron <- numint[match(seq_len(n), which(hclipped)[idx]), num_intron]
       salign[is.na(hardNumIntron) & !is.na(hardstart), hardNumIntron := 0]
     }
+    
   } else {
     salign[, hardNumIntron := NA_integer_]
   }
+
+  # whether the hard clip is on the normal splicingn site
+  splclipped <- hclipped & rtea$type %in% c("splice_donor", "splice_acceptor")
+  if(any(splclipped)) {
+    ungappos <- ungapPos.rtea(rtea[splclipped == T])
+    gr <- GRanges(pastechr(rtea[splclipped == T, chr]), IRanges(ungappos, ungappos), "*")
+    intrdata <- subset(annodata, type == "intron")
+    spldata <- c(flank(intrdata, width = 5L, start = T, both = T),
+                 flank(intrdata, width = 5L, start = F, both = T)
+                 )
+    intovlap <- findOverlaps(gr, spldata, maxgap = 5L) %>%
+      data.frame %>%
+      data.table
+    intovlap[, hardDist := salign[splclipped == T][queryHits, hardDist]]
+    intovlap[, width := rep(width(intrdata), 2)[subjectHits]]
+    intovlap[, enst := spldata$transcript_id[subjectHits]]
+    intovlap[, rdiff := abs(hardDist - width)]
+    setorder(intovlap, enst)
+    hardmatched <- intovlap[rdiff < 10L, 
+                            .(enst = enst[which.min(rdiff)]), 
+                            by = queryHits
+                            ]
+    salign$hardSpl <- hardmatched[match(seq_len(n), which(splclipped)[queryHits]), enst]
+  } else {
+    salign[, hardSpl := NA_character_]
+  }
   
-  # overlapdt[, lapply(c("exon", "intron", "5UTR", "3UTR"), 
-  #                    function(x) sum(type[transcript == whichenst[idx, transcript]] == x, na.rm = T)
-  #                   ), by = idx]
-  
-  rtea <- data.table(rtea, salign[, hardstart:hardNumIntron])
-  rtea[Filter != "PASS" & hardDist < hardFilter_cutoff, Filter := paste(Filter, "indel", sep=";")]
-  rtea[Filter == "PASS" & hardDist < hardFilter_cutoff, Filter := "indel"]
+  data.table(rtea, salign[, hardstart:hardSpl])
 }
 
 TEcoordinate <- function(rtea, threads = getDTthreads()) {
