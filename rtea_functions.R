@@ -519,8 +519,12 @@ cntFilter.ctea <- function(ctea,
   ctea[anyWrongPos / matchCnt >= wrongPosPropCutoff, Filter := paste(Filter, "badMap", sep=";")]
   ctea[bothClip / matchCnt > bothClipPropCutoff, Filter := paste(Filter, "pseudoMap", sep=";")]
   ctea[secondary >= secondaryCutoff, Filter := paste(Filter, "secondary", sep=";")]
-  ctea[TEscore <= TEscoreCutoff, Filter := paste(Filter, "lowTEscore", sep = ";")]
-  ctea[nonspecificTE >= nonspecificTEcutoff, Filter := paste(Filter, "nonspecificTE", sep = ";")]
+  if(exists("TEscore", ctea)) {
+    ctea[TEscore <= TEscoreCutoff, Filter := paste(Filter, "lowTEscore", sep = ";")]  
+  }
+  if(exists("nonspecificTE", ctea)) {
+    ctea[nonspecificTE >= nonspecificTEcutoff, Filter := paste(Filter, "nonspecificTE", sep = ";")]  
+  }
   if(exists("hardDist", ctea)) {
     ctea[hardDist < hardFilter_cutoff, Filter := paste(Filter, "indel", sep=";")]  
   }
@@ -626,8 +630,8 @@ countClippedReads.ctea <- function(ctea,
         anyOverClip = sum(isOverClip),
         mateDist = suppressWarnings(min(abs(pos - meta$mpos)[isOverClip])),
         anyWrongPos = sum(!isProperPair & !mateUnmapped & !isMateSide & isMatch),
-        overhang = suppressWarnings(median(meta$overhang[isMatch])),
-        gap = suppressWarnings(median(meta$gap[isMatch])),
+        overhang = suppressWarnings(median(meta$overhang[isMatch & !shortClip])),
+        gap = suppressWarnings(median(meta$gap[isMatch & !shortClip])),
         secondary = mean(isSecondary[isMatch]),
         editDistance = mean(meta$NM[isMatch]),
         nonspecificTE = mean(isTEread[isMatch])
@@ -651,8 +655,7 @@ countClippedReads.ctea <- function(ctea,
     }
   )
   
-  ctea <- data.table(ctea, cntdt)
-  cntFilter.ctea(ctea)
+  data.table(ctea, cntdt)
 }
 
 countClippedReads.default <- function(chr, pos, ori, seq, 
@@ -971,7 +974,7 @@ localHardClip <- function(rtea,
   }
 
   # whether the hard clip is on the normal splicingn site
-  splclipped <- hclipped & rtea$type %in% c("splice_donor", "splice_acceptor")
+  splclipped <- hclipped & rtea$type != "intergenic"
   if(any(splclipped)) {
     ungappos <- ungapPos.rtea(rtea[splclipped == T])
     gr <- GRanges(pastechr(rtea[splclipped == T, chr]), IRanges(ungappos, ungappos), "*")
