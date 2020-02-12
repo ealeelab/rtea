@@ -623,7 +623,7 @@ countClippedReads.ctea <- function(ctea,
         uniqueCnt = sum(isMatch & !possibleDup & !shortClip),
         bothClip = sum(isMatch & bothClip),
         polyAcnt = sum(isPolyA),
-        falseCnt = length(sam) - sum(isMatch), 
+        falseCnt = sum(!isMatch & !shortClip), 
         discCnt = sum(isMatch & !isProperPair & !mateUnmapped & isMateSide),
         baseQual = median(meta$squal[isMatch & !isPolyA]), 
         clustered = sd(nchar(meta$sseq[isMatch])),
@@ -1013,7 +1013,7 @@ TEcoordinate <- function(rtea, threads = getDTthreads()) {
   mfa <- match(TEclass, names(fa))
   idxfa <- as.list(mfa)
   idxfa[TEclass == "LINE1"] <- list(grep("L1", names(fa)))
-  idxfa[TEclass == "AluY"] <- list(grep("Alu", names(fa)))
+  idxfa[TEclass == "AluY"] <- list(grep("ALU", toupper(names(fa))))
   idxfa[TEclass == "SVA"] <- list(grep("SVA", names(fa)))
   idxfa <- idxfa[!is.na(mfa)]
   fseq <- rtea[!is.na(mfa), DNAStringSet(seq)]
@@ -1029,7 +1029,8 @@ TEcoordinate <- function(rtea, threads = getDTthreads()) {
       cat(sprintf("\r%0.2f%%              ", i/n*100))
       pairwiseAlignment(fa[idxfa[[i]]],
                         fseq[[i]],
-                        type = "local-global"
+                        type = "local-global",
+                        gapExtension = 2
       )
     }
   )
@@ -1042,7 +1043,9 @@ TEcoordinate <- function(rtea, threads = getDTthreads()) {
       cat(sprintf("\r%0.2f%%              ", i/n*100))
       pairwiseAlignment(fa[idxfa[[i]]], 
                         rseq[[i]], 
-                        type = "local-global")
+                        type = "local-global",
+                        gapExtension = 2
+      )
     }
   )
   writeLines("\nMapping done.")
