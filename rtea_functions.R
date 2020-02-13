@@ -81,44 +81,33 @@ readctea <- function(cteafile, count_cutoff = 3, confidence_cutoff = 2, threads 
   require(parallel)
   setDTthreads(threads)
   writeLines(paste("Reading", cteafile))
-  # ctea <- fread(cteafile)
   awkcmd <- paste("awk -F '\\t' '$4 >=", count_cutoff, 
                   "&& $6 >=", confidence_cutoff, 
                   "'",
-                  # "&& $5 != \"PolyA\"'", 
-                  cteafile)
+                  cteafile
+  )
   ctea <- fread(cmd = awkcmd, sep = "\t")
   setnames(ctea, 
            c("chr", "pos", "ori", "cnt", "family", "confidence",
-             "moreFamily", "seq", "morePos", "moreSeq"))
-  # ctea <- ctea[cnt >= count_cutoff & confidence >= confidence_cutoff, ]
-  revseq <- ctea[["seq"]] %>% 
-    DNAStringSet %>% 
-    reverseComplement %>% 
-    as("character")
-  moreseq <- strsplit(ctea[["moreSeq"]], ",")
-  morepos <- strsplit(ctea[["morePos"]], ",")
-  seqmatch <- mcmapply(match, ctea[["seq"]], moreseq, mc.cores = threads)
-  revseqmatch <- mcmapply(match, revseq, moreseq, mc.cores = threads)
-  seqmatch[is.na(seqmatch)] <-revseqmatch[is.na(seqmatch)]
-  ctea[, pos := mcmapply(`[`, morepos, seqmatch, mc.cores = threads) %>% as.integer]
-  ctea[, seq := mcmapply(`[`, moreseq, seqmatch, mc.cores = threads)]
+             "moreFamily", "seq", "morePos", "moreSeq")
+           )
+  # revseq <- ctea[["seq"]] %>% 
+  #   DNAStringSet %>% 
+  #   reverseComplement %>% 
+  #   as("character")
+  # moreseq <- strsplit(ctea[["moreSeq"]], ",")
+  # morepos <- strsplit(ctea[["morePos"]], ",")
+  # seqmatch <- mcmapply(match, ctea[["seq"]], moreseq, mc.cores = threads)
+  # revseqmatch <- mcmapply(match, revseq, moreseq, mc.cores = threads)
+  # seqmatch[is.na(seqmatch)] <-revseqmatch[is.na(seqmatch)]
+  # ctea[, pos := mcmapply(`[`, morepos, seqmatch, mc.cores = threads) %>% as.integer]
+  # ctea[, seq := mcmapply(`[`, moreseq, seqmatch, mc.cores = threads)]
   ctea[, class := NA_character_]
   ctea[family %in% c("L1HS", "LINE1"), class := "L1"]
   ctea[toupper(substr(family, 1, 3)) == "ALU", class := "Alu"]
   ctea[substr(family, 1, 3) == "SVA", class := "SVA"]
   ctea[substr(family, 1, 4) == "HERV", class := "HERV"]
-  # ctea[, class := structure(c(rep("L1", 2),
-  #                             rep("Alu", 11),
-  #                             rep("SVA", 7),
-  #                             rep("HERV", 8),
-  #                             rep("simple_repeat", 3)),
-  #                           names = c("L1HS", "LINE1", 
-  #                                     "ALU", "AluJb", "AluJo", "AluSc", "AluSg", "AluSp", "AluSq", "AluSx", "AluSz", "AluY", "AluYd8", 
-  #                                     "SVA", "SVA_A", "SVA_B", "SVA_C", "SVA_D", "SVA_E", "SVA_F",
-  #                                     "HERVE", "HERVH48I", "HERVK", "HERVK11DI", "HERVK11I", "HERVK13I", "HERVK3I", "HERVK9I", 
-  #                                     "(A)n", "(GAAA)n", "(TTTC)n"
-  #                           ))[family]]
+
   ctea[, .(chr, pos, ori, cnt, class, family, moreFamily, confidence, seq)]
 }
 
