@@ -1,5 +1,5 @@
 if [ $# -lt 3 ]
-then 
+then
   echo Usage: $0 R1.fq R2.fq out_prefix threads
   exit 1
 fi
@@ -25,26 +25,9 @@ fastpCMD="fastp --correction $nl
   --json ${OUT_PREFIX}.fastp.json $nl
   --thread $threads"
 
-cmd1="hisat2 $nl
+cmd="hisat2 $nl
   --sp 1,0 $nl
   --score-min L,0,-0.5 $nl
-  --novel-splicesite-outfile ${OUT_PREFIX}.junction.txt $nl
-  --pen-canintronlen S,9,0.1 $nl
-  --pen-noncanintronlen S,9,0.1 $nl
-  --max-intronlen 90000 $nl
-  --dta $nl
-  -k 10 $nl
-  --secondary $nl
-  --threads $threads $nl
-  -x $ref $nl
-  -1 $TRIMMED_R1 $nl
-  -2 $TRIMMED_R2 $nl
-  -S /dev/null"
-
-cmd2="hisat2 $nl
-  --sp 1,0 $nl
-  --score-min L,0,-0.5 $nl
-  --novel-splicesite-infile ${OUT_PREFIX}.junction.txt $nl
   --pen-canintronlen S,9,0.1 $nl
   --pen-noncanintronlen S,9,0.1 $nl
   --max-intronlen 90000 $nl
@@ -69,7 +52,7 @@ RunCMD() {
   rm -f ${OUTFILE}.fail ${OUTFILE}.done
   CMD=$@
   EXE=${CMD//\\\\\\n/}
-  echo 
+  echo
   echo [`date`]
   echo -e $CMD
   if echo $EXE | grep "|" -q
@@ -91,8 +74,7 @@ RunCMD() {
 }
 
 RunCMD $TRIMMED_R1 $fastpCMD
-RunCMD ${OUT_PREFIX}.junction.txt $cmd1
-RunCMD ${OUT_PREFIX}.hisat2.presort.bam $cmd2
+RunCMD ${OUT_PREFIX}.hisat2.presort.bam $cmd
 RunCMD ${OUT_PREFIX}.hisat2.bam samtools sort -@ $threads -o ${OUT_PREFIX}.hisat2.bam ${OUT_PREFIX}.hisat2.presort.bam
 RunCMD ${OUT_PREFIX}.hisat2.bam.bai samtools index ${OUT_PREFIX}.hisat2.bam
 rm -f $TRIMMED_R1 $TRIMMED_R2

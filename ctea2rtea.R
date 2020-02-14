@@ -65,7 +65,8 @@ setDTthreads(threads)
 ctea <- readctea(cteafile, threads = threads) %>%
         filterUnlocalized.ctea %>%
         filterSimpleRepeat.ctea %>%
-        filterTEsite.ctea %>%
+        repeatPositon.ctea %>%
+        filterSimpleSite %>%
         filterNoClip.ctea(threads = threads) %>%
         TEcoordinate
 ctea %<>% .[isPolyA | TEscore > 0, ]

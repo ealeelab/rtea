@@ -21,11 +21,15 @@ HISAT_SCRIPT=$THIS_DIR/HISAT2_TE.sh
 CTEA_SCRIPT=$THIS_DIR/run_ctea.R
 RTEA_SCRIPT=$THIS_DIR/ctea2rtea.R
 REF_DIR=$THIS_DIR/ref/$BUILD
+TMP_DIR=$OUT_DIR/tmp
 
 mkdir -p $OUT_DIR
 mkdir -p $OUT_DIR/bam
 mkdir -p $OUT_DIR/ctea
 mkdir -p $OUT_DIR/rtea
+mkdir -p $TMP_DIR
+
+export TMP=$TMP_DIR
 
 cp $0 $OUT_DIR/$(basename ${0%.sh})_$(date +"%y%m%d%H").sh
 

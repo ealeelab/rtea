@@ -149,8 +149,8 @@ filterSimpleRepeat.ctea <- function(ctea, Alength = 10, percentA = 0.8) {
 }
 
 grLocator <- function(chr, start, end = start, 
-                      refgr, refdt = data.table(data.frame(mcols(refgr)))
-                      ) {
+                      refgr, refdt = data.table(data.frame(mcols(refgr))),
+                      maxgap = -1L) {
   stopifnot(length(chr) == length(start))
   if(length(chr) == 0)
     return(refdt[0, ])
@@ -167,7 +167,7 @@ grLocator <- function(chr, start, end = start,
   st <- pmin(start[!isNA], end[!isNA])
   en <- pmax(start[!isNA], end[!isNA])
   cgr <- GRanges(ch, IRanges(st, en), "*")
-  overlap <- findOverlaps(cgr, refgr, ignore.strand = T)
+  overlap <- findOverlaps(cgr, refgr, ignore.strand = T, maxgap = maxgap)
   matchdata <- data.table(idx = queryHits(overlap),
                           refdt[subjectHits(overlap), ]
   )
@@ -189,18 +189,42 @@ polyTElocation.ctea <- function(ctea, clip_width = 5) {
   ctea
 }
 
-repeatLocation <- function(chr, start, end = start) {
+repeatLocation <- function(chr, start, end = start, maxgap = -1L) {
   # require(rtracklayer)
   # rmsk <- import(rmsk_gtf_file, "gtf")
   rmsk <- readRDS(rmsk_file)
   rmsk$family[is.na(rmsk$family)] <- rmsk$class[is.na(rmsk$family)]
   mcols(rmsk) %<>% with(DataFrame(repFamily = family, repName = subfamily))
-  grLocator(chr, start, end, rmsk)
+  grLocator(chr, start, end, rmsk, maxgap = maxgap)
+}
+
+#' @export
+repeatPositon.ctea <- function(ctea, clip_width = 5L) {
+  rpt <- ctea[, repeatLocation(chr, pos - clip_width, pos + clip_width)]
+  ctea[, c("posRepFamily", "posRep") := rpt]
+}
+
+#' @export
+filterSimpleSite <- function(ctea, Alength = 10, percentA = 0.8) {
+  if(!exists("posRep", ctea)) {
+    ctea <- repeatPosition.ctea(ctea)
+  }
+  Asite <- grepl("[(][^,]*A[^,]*[)]", ctea$posRep) | grepl("A-rich", ctea$posRep)
+  Tsite <- grepl("[(][^,]*T[^,]*[)]", ctea$posRep)
+  proxseq <- ctea[, ifelse(ori == "f", 
+                           stringr::str_sub(seq, start = -Alength),
+                           stringr::str_sub(seq, end = Alength)
+  )]
+  Aprop <- stringr::str_count(proxseq, "A") / Alength
+  Tprop <- stringr::str_count(proxseq, "T") / Alength
+  simpleSite <- (Asite & Aprop >= percentA) | (Tsite & Tprop >= percentA)
+  ctea[simpleSite == F]
 }
 
 filterTEsite.ctea <- function(ctea, clip_width = 5,
                               filterFamily = c("Alu", "Simple_repeat", "Low_complexity")
                      ) {
+  warning("This function is deprecated. Use repeatPositon.ctea and filterSimpleSite instead.")
   rpt <- ctea[, repeatLocation(chr, pos - clip_width, pos + clip_width)]
   ctea[, c("posRepFamily", "posRep") := rpt]
   ctea <- ctea[strsplit(posRepFamily, ",") %>%
@@ -209,6 +233,7 @@ filterTEsite.ctea <- function(ctea, clip_width = 5,
 }
 
 filterPolyTEsite.ctea <- function(ctea, clip_width = 5) {
+  warning("This function is deprecated. Use polyTElocation.ctea instead.")
   require(GenomicRanges)
   tegr <- readRDS(polyTE_file) %>%
   {resize(., width(.) + clip_width, fix = "start")} %>%
@@ -220,23 +245,6 @@ filterPolyTEsite.ctea <- function(ctea, clip_width = 5) {
   overlapTE <- findOverlaps(cgr, tegr, ignore.strand = T)
   ctea[, inPolyTE := .I %in% queryHits(overlapTE)]
   ctea[inPolyTE == F, ]
-}
-
-filterPolyA.ctea <- function(ctea, polyAoutfile = NULL, Alength = 10, percentA = 0.8) {
-  library(stringr)
-  require(GenomicRanges)
-  
-  normalPolyA <- rep(NA, nrow(ctea))
-  normalPolyA[ctea[, ori == "r"]] <- ctea[ori == "r", 
-                                          grepl(paste0("A{", Alength, "}"), seq) | 
-                                            str_count(seq, "A") / nchar(seq) > percentA
-                                          ]
-  normalPolyA[ctea[, ori == "f"]] <- ctea[ori == "f",
-                                          grepl(paste0("T{", Alength, "}"), seq) | 
-                                            str_count(seq, "T") / nchar(seq) > percentA
-                                          ]
-
-  ctea[normalPolyA == F, ]
 }
 
 filterIn.ctea <- function(ctea, xtea, accept_width = 3) {
