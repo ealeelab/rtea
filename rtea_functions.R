@@ -149,8 +149,8 @@ filterSimpleRepeat.ctea <- function(ctea, Alength = 10, percentA = 0.8) {
 }
 
 grLocator <- function(chr, start, end = start, 
-                      refgr, refdt = data.table(data.frame(mcols(refgr))),
-                      maxgap = -1L) {
+                      refgr, refdt = data.table(data.frame(mcols(refgr)))
+                      ) {
   stopifnot(length(chr) == length(start))
   if(length(chr) == 0)
     return(refdt[0, ])
@@ -167,7 +167,7 @@ grLocator <- function(chr, start, end = start,
   st <- pmin(start[!isNA], end[!isNA])
   en <- pmax(start[!isNA], end[!isNA])
   cgr <- GRanges(ch, IRanges(st, en), "*")
-  overlap <- findOverlaps(cgr, refgr, ignore.strand = T, maxgap = maxgap)
+  overlap <- findOverlaps(cgr, refgr, ignore.strand = T)
   matchdata <- data.table(idx = queryHits(overlap),
                           refdt[subjectHits(overlap), ]
   )
@@ -189,13 +189,13 @@ polyTElocation.ctea <- function(ctea, clip_width = 5) {
   ctea
 }
 
-repeatLocation <- function(chr, start, end = start, maxgap = -1L) {
+repeatLocation <- function(chr, start, end = start) {
   # require(rtracklayer)
   # rmsk <- import(rmsk_gtf_file, "gtf")
   rmsk <- readRDS(rmsk_file)
   rmsk$family[is.na(rmsk$family)] <- rmsk$class[is.na(rmsk$family)]
   mcols(rmsk) %<>% with(DataFrame(repFamily = family, repName = subfamily))
-  grLocator(chr, start, end, rmsk, maxgap = maxgap)
+  grLocator(chr, start, end, rmsk)
 }
 
 #' @export
@@ -205,12 +205,22 @@ repeatPositon.ctea <- function(ctea, clip_width = 5L) {
 }
 
 #' @export
-filterSimpleSite <- function(ctea, Alength = 10, percentA = 0.8) {
+filterSimpleSite <- function(ctea, 
+                             Alength = 10, percentA = 0.8,
+                             refAlength = 20, refPercentA = 0.8) {
   if(!exists("posRep", ctea)) {
     ctea <- repeatPosition.ctea(ctea)
   }
-  Asite <- grepl("[(][^,]*A[^,]*[)]", ctea$posRep) | grepl("A-rich", ctea$posRep)
-  Tsite <- grepl("[(][^,]*T[^,]*[)]", ctea$posRep)
+  require(bsgenomePKG,  character.only = T)
+  genome <- get(bsgenomePKG)
+  refrootseq <- ctea[, getSeq(genome, 
+                            pastechr(chr), 
+                            ifelse(ori == "f", pos + 1, pos - refAlength),
+                            ifelse(ori == "f", pos + refAlength, pos - 1)
+  )]
+  Asite <- stringr::str_count(refrootseq, "A") / refAlength >= refPercentA
+  Tsite <- stringr::str_count(refrootseq, "T") / refAlength >= refPercentA
+  
   proxseq <- ctea[, ifelse(ori == "f", 
                            stringr::str_sub(seq, start = -Alength),
                            stringr::str_sub(seq, end = Alength)
