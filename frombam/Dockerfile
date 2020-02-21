@@ -1,4 +1,4 @@
-FROM boramlee/rtea:200123
+FROM boramlee/rtea
 MAINTAINER Boram Lee
 
 

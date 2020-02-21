@@ -506,10 +506,10 @@ TEalignScore <- function(seq, TEfamily) {
 cntFilter.ctea <- function(ctea,
                            trueCntCutoff = 2,
                            uniqueCntCutoff = 2,
-                           falseCntRatioCutoff = 3,
+                           falseCntRatioCutoff = 10,
                            baseQualCutoff = 25,
                            wrongPosPropCutoff = 0.2,
-                           bothClipPropCutoff = 0.2,
+                           bothClipPropCutoff = 0.4,
                            secondaryCutoff = 0.99,
                            TEscoreCutoff = 30,
                            nonspecificTEcutoff = 0,
@@ -726,6 +726,71 @@ ungapPos.rtea <- function(rtea, overhang_cutoff = 5L) {
   rover <- rtea[, which(ori == "r" & overhang <= overhang_cutoff)]
   ungappos[rover] <- rtea[rover, pos - gap]
   ungappos
+}
+
+unique.rtea <- function(rtea, 
+                        overhang_cutoff = 10L, maxgap = 10L, 
+                        verbose = getOption("verbose", F)) {
+  library(GenomicRanges)
+  library(Biostrings)
+  ungappos <- ungapPos.rtea(rtea, overhang_cutoff = overhang_cutoff)
+  rgr <- rtea[, GRanges(chr, IRanges(ungappos, ungappos), ifelse(ori == "f", "+", "-"))]
+  ovlap <- findOverlaps(rgr, rgr, maxgap = maxgap)
+  ovlap %<>% .[queryHits(.) < subjectHits(.)]
+  # natostring <- function(x) {
+  #   x[is.na(x)] <- "NA"
+  #   x
+  # }
+  writeLines("Finding duplicates...")
+  for(i in seq_along(ovlap)) {
+    if(verbose) {
+      cat("\r", i / length(ovlap) * 100, "     ")  
+    }
+    
+    queryIdx <- queryHits(ovlap[i])
+    subjectIdx <- subjectHits(ovlap[i])
+    
+    if(rtea[queryIdx, is.na(class)] |
+       rtea[subjectIdx, is.na(class)] |
+       rtea[queryIdx, class] != rtea[subjectIdx, class]) {
+      next
+    }
+    align <- pairwiseAlignment(rtea[queryIdx, seq], rtea[subjectIdx, seq], type = "local")
+    if(score(align) < 20) {
+      next
+    }
+    
+    queryselect <- rtea[queryIdx, TEscore] > rtea[subjectIdx, TEscore]
+    if(rtea[queryIdx, TEscore] == rtea[subjectIdx, TEscore]) {
+      queryselect <- rtea[queryIdx, uniqueCnt] >= rtea[subjectIdx, uniqueCnt]
+    }
+    
+    if(queryselect) {
+      rtea[subjectIdx, ] <- rtea[queryIdx, ]
+    } else {
+      rtea[queryIdx, ] <- rtea[subjectIdx, ]
+    }
+  }
+  
+  unique(rtea)
+  # To do: can be parallelized over same groups
+  # ovlap <- findOverlaps(rgr, rgr, maxgap = maxgap) %>% data.frame %>% data.table
+  # ovlap %<>% .[queryHits < subjectHits]
+  # ovlap[, groupid := queryHits]
+  # ovlap <- merge(ovlap, 
+  #                ovlap[!duplicated(subjectHits), .(queryHits = subjectHits, groupid2 = groupid)], 
+  #                all.x = T
+  # )
+  # while(ovlap[!is.na(groupid2), any(groupid != groupid2)]) {
+  #   ovlap[!is.na(groupid2), groupid := groupid2]
+  #   ovlap[, groupid2 := NULL]
+  #   ovlap <- merge(ovlap, 
+  #                  ovlap[!duplicated(subjectHits), .(queryHits = subjectHits, groupid2 = groupid)], 
+  #                  all.x = T
+  #   )
+  # }
+  
+  
 }
 
 matchScallop.ctea <- function(ctea, scallopfile, matchrange = 300, overhangmin = 5) {

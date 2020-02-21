@@ -80,10 +80,10 @@ RunCMD() {
   echo "Exit status: $ES"
   if [ $ES -ne 0 -o ! -s $OUTFILE ]
   then
-    echo -d $CMD > ${OUTFILE}.fail
+    echo -e $CMD > ${OUTFILE}.fail
     exit $ES
   fi
-    echo -d $CMD > ${OUTFILE}.done
+    echo -e $CMD > ${OUTFILE}.done
   return $ES
 }
 
