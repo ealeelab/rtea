@@ -213,11 +213,16 @@ filterSimpleSite <- function(ctea,
   }
   require(bsgenomePKG,  character.only = T)
   genome <- get(bsgenomePKG)
-  refrootseq <- ctea[, getSeq(genome, 
-                            pastechr(chr), 
-                            ifelse(ori == "f", pos + 1, pos - refAlength),
-                            ifelse(ori == "f", pos + refAlength, pos - 1)
-  )]
+  st <- ctea[, pmax(ifelse(ori == "f", pos + 1, pos - refAlength), 
+                    0
+                    )
+             ]
+  en <- ctea[, pmin(ifelse(ori == "f", pos + refAlength, pos - 1), 
+                    seqlengths(genome)[pastechr(chr)]
+                    )
+             ]
+  refrootseq <- ctea[, getSeq(genome, pastechr(chr), st, en)]
+  
   Asite <- stringr::str_count(refrootseq, "A") / refAlength >= refPercentA
   Tsite <- stringr::str_count(refrootseq, "T") / refAlength >= refPercentA
   
@@ -322,7 +327,7 @@ getClippedReads <- function(bamfile, chr, pos, ori = c("f", "r"),
     bamfile, 
     param = ScanBamParam(
       which = gr, 
-      what = c("qname", "seq", "qual", "flag", "mpos"),
+      what = c("qname", "seq", "qual", "mapq", "flag", "mpos"),
       tag = "NM",
       mapqFilter = mapqFilter
     )
@@ -547,7 +552,8 @@ cntFilter.ctea <- function(ctea,
 
 countClippedReads.ctea <- function(ctea, 
                                    bamfile, 
-                                   searchWidth = 10, 
+                                   searchWidth = 10L, 
+                                   mapqFilter = 10L,
                                    shift_range = 0,
                                    mismatch_cutoff = 0.1, 
                                    cliplength_cutoff = 4,
@@ -609,7 +615,7 @@ countClippedReads.ctea <- function(ctea,
           nonspecificTE = NA_real_
         ))
       }
-      sam <- getClippedReads(bamfile, chr, pos, ori, searchWidth)
+      sam <- getClippedReads(bamfile, chr, pos, ori, searchWidth = searchWidth, mapqFilter = mapqFilter)
       meta <- mcols(sam)
       differ <- compareClippedSeq(meta$sseq, seq, ori, shift_range = shift_range)
       isMatch <- differ < mismatch_cutoff
@@ -626,13 +632,14 @@ countClippedReads.ctea <- function(ctea,
       isTEread <- TEalignScore(mcols(sam)$seq, family)
       list(
         matchCnt = sum(isMatch),
-        trueCnt = sum(isMatch & !bothClip & !shortClip & !isPolyA), 
+        trueCnt = sum(isMatch & !shortClip & !isPolyA), 
         uniqueCnt = sum(isMatch & !possibleDup & !shortClip),
         bothClip = sum(isMatch & bothClip),
         polyAcnt = sum(isPolyA),
         falseCnt = sum(!isMatch & !shortClip), 
         discCnt = sum(isMatch & !isProperPair & !mateUnmapped & isMateSide),
         baseQual = median(meta$squal[isMatch & !isPolyA]), 
+        lowMapQual = sum(meta$mapq[isMatch & !shortClip] == 0),
         clustered = sd(nchar(meta$sseq[isMatch])),
         anyOverClip = sum(isOverClip),
         mateDist = suppressWarnings(min(abs(pos - meta$mpos)[isOverClip])),
