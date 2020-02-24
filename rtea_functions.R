@@ -516,6 +516,7 @@ cntFilter.ctea <- function(ctea,
                            wrongPosPropCutoff = 0.2,
                            bothClipPropCutoff = 0.4,
                            secondaryCutoff = 0.99,
+                           lowMapQualCutoff = 2,
                            TEscoreCutoff = 30,
                            nonspecificTEcutoff = 0,
                            hardFilter_cutoff = 50) {
@@ -531,6 +532,7 @@ cntFilter.ctea <- function(ctea,
   ctea[anyWrongPos / matchCnt >= wrongPosPropCutoff, Filter := paste(Filter, "badMap", sep=";")]
   ctea[bothClip / matchCnt > bothClipPropCutoff, Filter := paste(Filter, "pseudoMap", sep=";")]
   ctea[secondary >= secondaryCutoff, Filter := paste(Filter, "secondary", sep=";")]
+  ctea[trueCnt - lowMapQual <= lowMapQualCutoff, Filter := paste(Filter, "lowMapQual", sep=";")]
   if(exists("TEscore", ctea)) {
     ctea[TEscore <= TEscoreCutoff, Filter := paste(Filter, "lowTEscore", sep = ";")]  
   }
@@ -553,7 +555,7 @@ cntFilter.ctea <- function(ctea,
 countClippedReads.ctea <- function(ctea, 
                                    bamfile, 
                                    searchWidth = 10L, 
-                                   mapqFilter = 10L,
+                                   mapqFilter = 0L,
                                    shift_range = 0,
                                    mismatch_cutoff = 0.1, 
                                    cliplength_cutoff = 4,

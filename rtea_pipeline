@@ -23,6 +23,12 @@ RTEA_SCRIPT=$THIS_DIR/ctea2rtea.R
 REF_DIR=$THIS_DIR/ref/$BUILD
 TMP_DIR=$OUT_DIR/tmp
 
+if [ -d $HISAT_REF ]
+then
+  HT2=$(ls $HISAT_REF/*ht2 | head -1)
+  HISAT_REF=${HT2%.1.ht2}
+fi
+
 mkdir -p $OUT_DIR
 mkdir -p $OUT_DIR/bam
 mkdir -p $OUT_DIR/ctea
@@ -37,7 +43,7 @@ HISAT_CMD="$HISAT_SCRIPT \\\\\n
    $R1 \\\\\n
    $R2 \\\\\n
    $OUT_DIR/bam/$PREFIX \\\\\n
-   $HISAT_REF/genome_snp_tran \\\\\n
+   $HISAT_REF \\\\\n
    $THREADS \\\\\n
    $RESUME"
 
