@@ -51,18 +51,15 @@ TEI_expression_Rscript <- opt$rtea
 refdir <- opt$refdir
 if(is.null(refdir)) refdir <- file.path(thisdir, "ref", genome_build)
 
-
 options(
-   threads = threads,
+   mc.cores = threads,
    genome_build = genome_build,
    refdir = refdir
 )
+setDTthreads(threads)
 sys.source(TEI_expression_Rscript, .GlobalEnv, chdir = T)
 
-library(GenomicAlignments)
-setDTthreads(threads)
-
-ctea <- readctea(cteafile, threads = threads) %>%
+ctea <- readctea(cteafile) %>%
         filterUnlocalized.ctea %>%
         filterSimpleRepeat.ctea %>%
         repeatPositon.ctea %>%

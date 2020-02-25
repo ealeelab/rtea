@@ -35,34 +35,8 @@ refTEfa <- getOption("refTEfa", file.path(refdir, "consensus_L1_ALU_SVA_HERV.fa"
 # if(is.null(refTEfa)) refTEfa <- "/home/bl177/rnatea/ref/hg38.RepeatMasker-4.0.6-Dfam-2.0.fa"
 
 ##### functions #####
-sacct <- function(start_date){
-  Sopt <- if(missing(start_date)) {
-    NULL
-  } else {
-    paste("-S", start_date)
-  }
-  saccmd <- paste("sacct -P -u $USER --format=JobName%30,Partition,state,ExitCode,NCPUS,Elapsed,End,MaxRSS --units=G",
-                  Sopt,
-                  "| grep -v '\\---'"
-  )
-  sac <- fread(saccmd,
-               colClasses = c(MaxRSS = "character"),
-               fill = T
-  )
-  batchidx <- which(sac$JobName == "batch")
-  sac[batchidx - 1, ExitCode := sac$ExitCode[batchidx]]
-  sac[batchidx - 1, MaxRSS := sac$MaxRSS[batchidx]]
-  sac <- sac[-batchidx]
-  sac[, Elapsed := as.difftime(Elapsed, units = "hours")]
-  ystday <- Sys.Date() - 1
-  plocale <- Sys.getlocale("LC_TIME")
-  Sys.setlocale("LC_TIME", "en_US.UTF-8")
-  sac[grep("Ystday", End), End := sub("Ystday", format(ystday, "%d %b"), End)]
-  Sys.setlocale("LC_TIME", plocale)
-  endformat <- rep("%d %b %H:%M", nrow(sac))
-  endformat[grep(" ", sac$End, invert = T)] <- "%H:%M:%S"
-  suppressWarnings(sac[, End := strptime(End, endformat)])
-  sac
+msg <- function(...) {
+  message(format(Sys.time(), "\n[%Y-%m-%d %X %Z] "), ...)
 }
 
 reattach <- function() {
@@ -76,11 +50,10 @@ pastechr <- function(x) {
   sub("^(chr)?", "chr", sub("MT", "M", x))
 }
 
-readctea <- function(cteafile, count_cutoff = 3, confidence_cutoff = 2, threads = getDTthreads()) {
-  require(Biostrings)
-  require(parallel)
-  setDTthreads(threads)
-  writeLines(paste("Reading", cteafile))
+readctea <- function(cteafile, count_cutoff = 3, confidence_cutoff = 2) {
+  # require(Biostrings)
+  # require(parallel)
+  msg(paste("Reading", cteafile))
   awkcmd <- paste("awk -F '\\t' '$4 >=", count_cutoff, 
                   "&& $6 >=", confidence_cutoff, 
                   "'",
@@ -111,9 +84,8 @@ readctea <- function(cteafile, count_cutoff = 3, confidence_cutoff = 2, threads 
   ctea[, .(chr, pos, ori, cnt, class, family, moreFamily, confidence, seq)]
 }
 
-readxtea <- function(xteafile, total_count_cutoff = 5, threads = getDTthreads()) {
-  setDTthreads(threads)
-  writeLines(paste("Reading", xteafile))
+readxtea <- function(xteafile, total_count_cutoff = 5) {
+  msg(paste("Reading", xteafile))
   xtea <- fread(xteafile)
   colnm <- switch(as.character(ncol(xtea)),
                   "6" = c("chr", "pos", "lt", "rt", "mate", "class"),
@@ -285,7 +257,7 @@ filterNoClip.ctea <- function(ctea, similarity_cutoff = 75, threads = getDTthrea
   ctea[, start := pos]
   ctea[, end := pos]
   if(nrow(ctea) == 0) {
-    writeLines("\nNo insertion found.")
+    msg("No insertion found.")
     ctea[, similar := numeric(0)]
     return(ctea)
   }
@@ -298,7 +270,7 @@ filterNoClip.ctea <- function(ctea, similarity_cutoff = 75, threads = getDTthrea
   refseq <- ctea[, getSeq(genome, pastechr(chr), start, end)]
   refseq <- paste0(stringr::str_dup("N", overstart), refseq, stringr::str_dup("N", overend))
   n <- nrow(ctea)
-  writeLines("Comparing clipped sequences with reference sequences...")
+  msg("Comparing clipped sequences with reference sequences...")
   similar <- mclapply(
     seq_len(n), 
     mc.cores = threads, 
@@ -310,13 +282,14 @@ filterNoClip.ctea <- function(ctea, similarity_cutoff = 75, threads = getDTthrea
       pid(pairwiseAlignment(rs, cs)) 
     }
   )
-  writeLines("\nComparing done.")
+  
+  msg("Comparing done.")
   ctea[, similar := unlist(similar)]
   ctea[similar <= similarity_cutoff, ]
 }
 
 getClippedReads <- function(bamfile, chr, pos, ori = c("f", "r"), 
-                            searchWidth = 10L,
+                            searchWidth = 0L,
                             mapqFilter = 10L) {
   require(GenomicAlignments)
   gr <- GRanges(chr, 
@@ -516,7 +489,7 @@ cntFilter.ctea <- function(ctea,
                            wrongPosPropCutoff = 0.2,
                            bothClipPropCutoff = 0.4,
                            secondaryCutoff = 0.99,
-                           lowMapQualCutoff = 2,
+                           lowMapQualPropCutoff = 0.99,
                            TEscoreCutoff = 30,
                            nonspecificTEcutoff = 0,
                            hardFilter_cutoff = 50) {
@@ -532,7 +505,7 @@ cntFilter.ctea <- function(ctea,
   ctea[anyWrongPos / matchCnt >= wrongPosPropCutoff, Filter := paste(Filter, "badMap", sep=";")]
   ctea[bothClip / matchCnt > bothClipPropCutoff, Filter := paste(Filter, "pseudoMap", sep=";")]
   ctea[secondary >= secondaryCutoff, Filter := paste(Filter, "secondary", sep=";")]
-  ctea[trueCnt - lowMapQual <= lowMapQualCutoff, Filter := paste(Filter, "lowMapQual", sep=";")]
+  ctea[lowMapQual / trueCnt >= lowMapQualPropCutoff, Filter := paste(Filter, "lowMapQual", sep=";")]
   if(exists("TEscore", ctea)) {
     ctea[TEscore <= TEscoreCutoff, Filter := paste(Filter, "lowTEscore", sep = ";")]  
   }
@@ -586,7 +559,7 @@ countClippedReads.ctea <- function(ctea,
       nonspecificTE = numeric(0)
     ) )
   }
-  writeLines("Counting clipped reads...")
+  msg("Counting clipped reads...")
   lcnt <- mcmapply(
     seq_len(n), 
     bamfile,
@@ -641,7 +614,7 @@ countClippedReads.ctea <- function(ctea,
         falseCnt = sum(!isMatch & !shortClip), 
         discCnt = sum(isMatch & !isProperPair & !mateUnmapped & isMateSide),
         baseQual = median(meta$squal[isMatch & !isPolyA]), 
-        lowMapQual = sum(meta$mapq[isMatch & !shortClip] == 0),
+        lowMapQual = sum(meta$mapq[isMatch & !shortClip] < mapqFilter + 10),
         clustered = sd(nchar(meta$sseq[isMatch])),
         anyOverClip = sum(isOverClip),
         mateDist = suppressWarnings(min(abs(pos - meta$mpos)[isOverClip])),
@@ -654,7 +627,8 @@ countClippedReads.ctea <- function(ctea,
       )
     }
   )
-  writeLines("\nCounting done.")
+  
+  msg("Counting done.")
   tryCatch(
     cntdt <- rbindlist(lcnt),
     error = function(e) {
@@ -750,7 +724,7 @@ unique.rtea <- function(rtea,
   #   x[is.na(x)] <- "NA"
   #   x
   # }
-  writeLines("Finding duplicates...")
+  msg("Finding duplicates...")
   for(i in seq_along(ovlap)) {
     if(verbose) {
       cat("\r", i / length(ovlap) * 100, "     ")  
@@ -849,7 +823,7 @@ geneticLocation <- function(chr, start, end = start) {
   # writeLines(paste("Importing", gene_file))
   # annodata <- import(gene_file, "gtf")
   annodata <- readRDS(gene_file)
-  writeLines("Location idenfying")
+  msg("Location idenfying")
   txannodata <- subset(annodata, type != "gene") 
   stopifnot(length(chr) == length(start))
   isNA <- is.na(chr) | is.na(start) | is.na(end)
@@ -899,7 +873,7 @@ annotate.ctea <- function(ctea,
   annodata <- readRDS(gene_file)
   seqlevels(annodata) %<>% pastechr
   annodata$exon_number <- as.integer(annodata$exon_number)
-  writeLines("Annotating TEI.")
+  msg("Annotating TEI.")
   txannodata <- subset(annodata, type != "gene") 
   ungappos <- ungapPos.rtea(ctea, overhang_cutoff)
   cgr <- ctea[, GRanges(pastechr(chr), IRanges(ungappos, width=1), c(r = "+", f = "-")[ori])]
@@ -996,7 +970,7 @@ localHardClip <- function(rtea,
     cbind(N = 0) %>% 
     rbind(N = 0)
   n <- rtea[, .N]
-  writeLines("Hard clip align ...")
+  msg("Hard clip align ...")
   salign <- mclapply(
     seq_len(n), 
     mc.cores = threads, 
@@ -1011,7 +985,8 @@ localHardClip <- function(rtea,
            mend = end(subject(align)))
     }
   ) %>% rbindlist
-  writeLines("\nDone align.")
+  
+  msg("Done align.")
   salign[, chr := rtea$chr]
   salign[, hardstart := searchstart + mstart - 1]
   salign[, hardend := searchstart + mend - 1]
@@ -1086,7 +1061,7 @@ localHardClip <- function(rtea,
 TEcoordinate <- function(rtea, threads = getDTthreads()) {
   require(Biostrings)
   require(parallel)
-  writeLines("Reading TE fasta file...")
+  msg("Reading TE fasta file...")
   fa <- readDNAStringSet(refTEfa)
   names(fa) %<>% sub("\\s.*", "", .)
   TEclass <- rtea[, family]
@@ -1100,7 +1075,7 @@ TEcoordinate <- function(rtea, threads = getDTthreads()) {
   fseq <- rtea[!is.na(mfa), DNAStringSet(seq)]
   rseq <- reverseComplement(fseq)
   ori <- rtea[!is.na(mfa), ori]
-  writeLines("Mapping + strand to TE references...")
+  msg("Mapping + strand to TE references...")
   n <- sum(!is.na(mfa))
   falign <- mclapply(
     seq_len(n), 
@@ -1115,7 +1090,8 @@ TEcoordinate <- function(rtea, threads = getDTthreads()) {
       )
     }
   )
-  writeLines("\nMapping - strand to TE references ...")
+  
+  msg("Mapping - strand to TE references ...")
   ralign <- mclapply(
     seq_len(n), 
     mc.cores = threads, 
@@ -1129,7 +1105,7 @@ TEcoordinate <- function(rtea, threads = getDTthreads()) {
       )
     }
   )
-  writeLines("\nMapping done.")
+  msg("Mapping done.")
   fscore <- lapply(falign, score)
   rscore <- lapply(ralign, score)
   fscomax <- sapply(fscore, max)
