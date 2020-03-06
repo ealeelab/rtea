@@ -101,5 +101,6 @@ give_refName <- function(ffile, rfile, outfile, bamfile) {
   ctea <- rbind(fread(ffile), fread(rfile))
   ctea[, refID := factor(refID, levels = refName, labels = names(refName))]
   setnames(ctea, "refID", "chr")
+  ctea <- ctea[order(as.integer(sub("chr", "", chr)), chr)]
   fwrite(ctea, outfile, sep = "\t", quote = F)
 }

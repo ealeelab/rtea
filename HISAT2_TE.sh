@@ -38,6 +38,8 @@ cmd="hisat2 $nl
   -x $ref $nl
   -1 $TRIMMED_R1 $nl
   -2 $TRIMMED_R2 $nl
+  --time $nl
+  --met-file ${OUT_PREFIX}.hisat2.metrics.txt $nl
   -S /dev/stdout | samtools view -Sb -o ${OUT_PREFIX}.hisat2.presort.bam -"
 
 RunCMD() {
