@@ -528,7 +528,7 @@ cntFilter.ctea <- function(ctea,
 countClippedReads.ctea <- function(ctea, 
                                    bamfile, 
                                    searchWidth = 10L, 
-                                   mapqFilter = 0L,
+                                   mapqFilter = 1L,
                                    shift_range = 0,
                                    mismatch_cutoff = 0.1, 
                                    cliplength_cutoff = 4,
@@ -644,7 +644,7 @@ countClippedReads.ctea <- function(ctea,
       e
     }
   )
-  
+  stopifnot(ctea[, .N] == cntdt[, .N])
   data.table(ctea, cntdt)
 }
 
