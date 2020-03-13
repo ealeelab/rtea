@@ -66,6 +66,7 @@ ctea <- readctea(cteafile) %>%
         filterSimpleSite %>%
         filterNoClip.ctea(threads = threads) %>%
         TEcoordinate
+ctea[ispolyA == T, class := "PolyA"]
 ctea %<>% .[isPolyA | TEscore > 0, ]
 ctea %<>% countClippedReads.ctea(bamfile, threads = threads)
 rtea <- ctea[trueCnt >= 3 | (isPolyA & polyAcnt >=3), ]

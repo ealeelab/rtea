@@ -288,24 +288,54 @@ filterNoClip.ctea <- function(ctea, similarity_cutoff = 75, threads = getDTthrea
   ctea[similar <= similarity_cutoff, ]
 }
 
+clippedBam <- function(bamfile, gr, searchWidth = 10L, mapqFilter = 1L, yieldSize = 1e6) {
+  library(GenomicAlignments)
+  library(GenomicFiles)
+  
+  cbfile <- filterBam(bamfile, tempfile(),
+                      param = ScanBamParam(which = gr, mapqFilter = mapqFilter),
+                      indexDestination = F
+  )
+  on.exit(unlink(cbfile))
+  
+  bf <- BamFile(cbfile, yieldSize = yieldSize)
+  yield <- function(x)
+    readGAlignments(x,
+                    param = ScanBamParam(
+                      what = c("qname", "seq", "qual", "mapq", "flag", "mpos"),
+                      tag = "NM",
+                      mapqFilter = mapqFilter
+                    )
+    )
+  reduceByYield(bf, yield, identity, REDUCEsampler(yieldSize, F))
+}
+
 getClippedReads <- function(bamfile, chr, pos, ori = c("f", "r"), 
                             searchWidth = 0L,
-                            mapqFilter = 10L) {
+                            mapqFilter = 10L,
+                            maxReads = 1e6) {
   require(GenomicAlignments)
   gr <- GRanges(chr, 
                 IRanges(min(pos) - searchWidth, max(pos) + searchWidth), 
                 strand="*"
   )
-  sam <- readGAlignments(
-    bamfile, 
-    param = ScanBamParam(
-      which = gr, 
-      what = c("qname", "seq", "qual", "mapq", "flag", "mpos"),
-      tag = "NM",
-      mapqFilter = mapqFilter
-    )
-  ) 
   
+  records <- countBam(bamfile, param = ScanBamParam(which = gr, mapqFilter = mapqFilter))$records
+  
+  sam <- if(records > maxReads) {
+    clippedBam(bamfile, gr, searchWidth = searchWidth, mapqFilter = mapqFilter, yieldSize = maxReads)
+  } else {
+    readGAlignments(
+      bamfile, 
+      param = ScanBamParam(
+        which = gr, 
+        what = c("qname", "seq", "qual", "mapq", "flag", "mpos"),
+        tag = "NM",
+        mapqFilter = mapqFilter
+      )
+    ) 
+  }
+
   assignZero <- function(mcols) {
     mcols$sseq <- character(0)
     mcols$squal <- numeric(0)
@@ -323,11 +353,11 @@ getClippedReads <- function(bamfile, chr, pos, ori = c("f", "r"),
     # deduplication
     sam <- sam[start(sam) > pos - qwidth(sam)]
     secondary <- bamFlagTest(mcols(sam)$flag, "isSecondaryAlignment")
-    split <- grepl("^[0-9]+S", cigar(sam))
-    othersplit <- grepl("S$", cigar(sam))
+    split <- grepl("^\\d+S", cigar(sam))
+    othersplit <- endsWith(cigar(sam), "S")
     sam <- sam[order(secondary, split, othersplit)]
     isFirst <- bamFlagTest(mcols(sam)$flag, "isFirstMateRead")
-    sam <- sam[!duplicated(paste(mcols(sam)$qname, isFirst)) & grepl("^[0-9]+S", cigar(sam))]
+    sam <- sam[!duplicated(paste(mcols(sam)$qname, isFirst)) & grepl("^\\d+S", cigar(sam))]
     
     mcols(sam)$slen <- sub("S.*", "", cigar(sam)) %>% as.integer
     mcols(sam)$shift <- start(sam) - pos - 1
@@ -353,11 +383,11 @@ getClippedReads <- function(bamfile, chr, pos, ori = c("f", "r"),
     # deduplication
     sam <- sam[end(sam) < pos + qwidth(sam)]
     secondary <- bamFlagTest(mcols(sam)$flag, "isSecondaryAlignment")
-    split <- grepl("S$", cigar(sam))
-    othersplit <- grepl("^[0-9]+S", cigar(sam))
+    split <- endsWith(cigar(sam), "S")
+    othersplit <- grepl("^\\d+S", cigar(sam))
     sam <- sam[order(secondary, split, othersplit)]
     isFirst <- bamFlagTest(mcols(sam)$flag, "isFirstMateRead")
-    sam <- sam[!duplicated(paste(mcols(sam)$qname, isFirst)) & grepl("S$", cigar(sam))]
+    sam <- sam[!duplicated(paste(mcols(sam)$qname, isFirst)) & endsWith(cigar(sam), "S")]
     
     # sam <- sam[grep("^[0-9]+S", cigar(sam), invert = T)]
     mcols(sam)$slen <- 
@@ -536,6 +566,8 @@ countClippedReads.ctea <- function(ctea,
   library(parallel)
   require(GenomicAlignments)
   require(data.table)
+  require(GenomicFiles)
+  
   n <- nrow(ctea)
   if(n == 0) {
     return( data.table(
@@ -870,6 +902,7 @@ annotate.ctea <- function(ctea,
   # require(rtracklayer)
   # writeLines(paste("Importing", gene_file))
   # annodata <- import(gene_file, "gtf")
+  library(GenomicRanges)
   annodata <- readRDS(gene_file)
   seqlevels(annodata) %<>% pastechr
   annodata$exon_number <- as.integer(annodata$exon_number)
