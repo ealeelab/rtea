@@ -13,6 +13,7 @@ options(error = function(){
   sink(stderr())
   traceback(3)
   sink()
+  save.image("rteaErr.RData")
   q("no", status = 1, runLast = F)
 })
 
@@ -79,8 +80,7 @@ if(!is.null(opt$scallop)) {
   rtea %<>% matchScallop.ctea(scallopfile)
 }
 
-writeLines(paste("Writing to", outfile))
-saveRDS(rtea, "rtea.rds")
+writeLines(paste("Writing result to", outfile))
 print(head(rtea))
 fwrite(rtea, outfile, sep="\t", na="NA", quote=F)
 

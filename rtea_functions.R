@@ -560,7 +560,7 @@ countClippedReads.ctea <- function(ctea,
                                    cliplength_cutoff = 4,
                                    maxReads = 1e6,
                                    threads = getOption("mc.cores", detectCores())) {
-  library(parallel)
+  library(BiocParallel)
   require(GenomicAlignments)
   require(data.table)
   require(GenomicFiles)
@@ -590,84 +590,93 @@ countClippedReads.ctea <- function(ctea,
     ) )
   }
   msg("Counting clipped reads...")
-  lcnt <- mcmapply(
-    seq_len(n), 
-    bamfile,
-    ctea$chr, ctea$pos, ctea$ori, ctea$seq, ctea$family,
-    mc.cores = threads, 
-    mc.preschedule = T, 
-    SIMPLIFY = F,
-    FUN = function(i, bamfile, chr, pos, ori, seq, family) {
-      cat(sprintf("\r%0.2f%%              ", i/n*100))
-      if(anyNA(c(chr, pos, ori, seq))) {
-        return(list(
-          depth = NA_real_,
-          matchCnt = NA_integer_,
-          trueCnt = NA_integer_, 
-          uniqueCnt = NA_integer_,
-          bothClip = NA_integer_,
-          polyAcnt = NA_integer_,
-          falseCnt = NA_integer_, 
-          discCnt = NA_integer_,
-          baseQual = NA_real_, 
-          clustered = NA_real_,
-          anyOverClip = NA_integer_,
-          mateDist = NA_integer_,
-          anyWrongPos = NA_integer_,
-          overhang = NA_integer_,
-          gap = NA_integer_,
-          secondary = NA_real_,
-          editDistance = NA_real_,
-          nonspecificTE = NA_real_
-        ))
-      }
-      records <- countBam(
-        bamfile, 
-        param = ScanBamParam(which = GenomicRanges(chr, IRanges(pos - searchWidth, pos + searchWidth), "*"), 
-                             mapqFilter = mapqFilter)
-      )$records
-      sam <- getClippedReads(bamfile, 
-                             chr, pos, ori, 
-                             subsample = records > maxReads,
-                             searchWidth = searchWidth, 
-                             mapqFilter = mapqFilter, 
-                             maxReads = maxReads
-      )
-      meta <- mcols(sam)
-      differ <- compareClippedSeq(meta$sseq, seq, ori, shift_range = shift_range)
-      isMatch <- differ < mismatch_cutoff
-      bothClip <- grepl("^[0-9]+S.*S$", cigar(sam))
-      shortClip <- nchar(meta$sseq) < cliplength_cutoff
-      isPolyA <- grepl("^(A+|T+)$", meta$sseq)
-      isMateSide <- as.factor(strand(sam)) == c(f = "-", r = "+")[ori]
-      isProperPair <- bamFlagTest(meta$flag, "isProperPair")
-      mateUnmapped <- bamFlagTest(meta$flag, "hasUnmappedMate")
-      isSecondary <- bamFlagTest(meta$flag, "isSecondaryAlignment")
-      mateOverlap <- meta$mpos %between% list(start(sam) - 3, end(sam) + 3)
-      isOverClip <- isProperPair & !mateOverlap & isMateSide & isMatch & !isPolyA
-      possibleDup <- duplicated(paste(nchar(meta$sseq), meta$mpos)) | duplicated(meta$sseq)
-      isTEread <- TEalignScore(meta$seq, family)
-      list(
-        depth = records / (2 * searchWidth + 1),
-        matchCnt = sum(isMatch),
-        trueCnt = sum(isMatch & !shortClip & !isPolyA), 
-        uniqueCnt = sum(isMatch & !possibleDup & !shortClip),
-        bothClip = sum(isMatch & bothClip),
-        polyAcnt = sum(isPolyA),
-        falseCnt = sum(!isMatch & !shortClip), 
-        discCnt = sum(isMatch & !isProperPair & !mateUnmapped & isMateSide),
-        baseQual = median(meta$squal[isMatch & !isPolyA]), 
-        lowMapQual = sum(meta$mapq[isMatch & !shortClip] < mapqFilter + 10),
-        clustered = sd(nchar(meta$sseq[isMatch])),
-        anyOverClip = sum(isOverClip),
-        mateDist = suppressWarnings(min(abs(pos - meta$mpos)[isOverClip])),
-        anyWrongPos = sum(!isProperPair & !mateUnmapped & !isMateSide & isMatch),
-        overhang = suppressWarnings(median(meta$overhang[isMatch & !shortClip])),
-        gap = suppressWarnings(median(meta$gap[isMatch & !shortClip])),
-        secondary = mean(isSecondary[isMatch]),
-        editDistance = mean(meta$NM[isMatch]),
-        nonspecificTE = mean(isTEread[isMatch])
-      )
+  countThis <- function(i, bamfile, chr, pos, ori, seq, family) {
+    cat(sprintf("\r%0.2f%%              ", i/n*100))
+    if(anyNA(c(chr, pos, ori, seq))) {
+      return(list(
+        depth = NA_real_,
+        matchCnt = NA_integer_,
+        trueCnt = NA_integer_, 
+        uniqueCnt = NA_integer_,
+        bothClip = NA_integer_,
+        polyAcnt = NA_integer_,
+        falseCnt = NA_integer_, 
+        discCnt = NA_integer_,
+        baseQual = NA_real_, 
+        clustered = NA_real_,
+        anyOverClip = NA_integer_,
+        mateDist = NA_integer_,
+        anyWrongPos = NA_integer_,
+        overhang = NA_integer_,
+        gap = NA_integer_,
+        secondary = NA_real_,
+        editDistance = NA_real_,
+        nonspecificTE = NA_real_
+      ))
+    }
+    records <- countBam(
+      bamfile, 
+      param = ScanBamParam(which = GRanges(chr, IRanges(pos - searchWidth, pos + searchWidth), "*"), 
+                           mapqFilter = mapqFilter)
+    )$records
+    sam <- getClippedReads(bamfile, 
+                           chr, pos, ori, 
+                           subsample = records > maxReads,
+                           searchWidth = searchWidth, 
+                           mapqFilter = mapqFilter, 
+                           maxReads = maxReads
+    )
+    meta <- mcols(sam)
+    differ <- compareClippedSeq(meta$sseq, seq, ori, shift_range = shift_range)
+    isMatch <- differ < mismatch_cutoff
+    bothClip <- grepl("^[0-9]+S.*S$", cigar(sam))
+    shortClip <- nchar(meta$sseq) < cliplength_cutoff
+    isPolyA <- grepl("^(A+|T+)$", meta$sseq)
+    isMateSide <- as.factor(strand(sam)) == c(f = "-", r = "+")[ori]
+    isProperPair <- bamFlagTest(meta$flag, "isProperPair")
+    mateUnmapped <- bamFlagTest(meta$flag, "hasUnmappedMate")
+    isSecondary <- bamFlagTest(meta$flag, "isSecondaryAlignment")
+    mateOverlap <- meta$mpos %between% list(start(sam) - 3, end(sam) + 3)
+    isOverClip <- isProperPair & !mateOverlap & isMateSide & isMatch & !isPolyA
+    possibleDup <- duplicated(paste(nchar(meta$sseq), meta$mpos)) | duplicated(meta$sseq)
+    isTEread <- TEalignScore(meta$seq, family)
+    list(
+      depth = records / (2 * searchWidth + 1),
+      matchCnt = sum(isMatch),
+      trueCnt = sum(isMatch & !shortClip & !isPolyA), 
+      uniqueCnt = sum(isMatch & !possibleDup & !shortClip),
+      bothClip = sum(isMatch & bothClip),
+      polyAcnt = sum(isPolyA),
+      falseCnt = sum(!isMatch & !shortClip), 
+      discCnt = sum(isMatch & !isProperPair & !mateUnmapped & isMateSide),
+      baseQual = median(meta$squal[isMatch & !isPolyA]), 
+      lowMapQual = sum(meta$mapq[isMatch & !shortClip] < mapqFilter + 10),
+      clustered = sd(nchar(meta$sseq[isMatch])),
+      anyOverClip = sum(isOverClip),
+      mateDist = suppressWarnings(min(abs(pos - meta$mpos)[isOverClip])),
+      anyWrongPos = sum(!isProperPair & !mateUnmapped & !isMateSide & isMatch),
+      overhang = suppressWarnings(median(meta$overhang[isMatch & !shortClip])),
+      gap = suppressWarnings(median(meta$gap[isMatch & !shortClip])),
+      secondary = mean(isSecondary[isMatch]),
+      editDistance = mean(meta$NM[isMatch]),
+      nonspecificTE = mean(isTEread[isMatch])
+    )
+  }
+  lcnt <- bptry(
+    bpmapply(
+      FUN = countThis,
+      seq_len(n), 
+      ctea$chr, ctea$pos, ctea$ori, ctea$seq, ctea$family,
+      MoreArgs = list(bamfile = bamfile),
+      SIMPLIFY = F,
+      BPPARAM = MulticoreParam(workers = threads, stop.on.error = T)
+    ),
+    bplist_error = function(e) {
+      save(ctea, bamfile, 
+           searchWidth, mapqFilter, shift_range, mismatch_cutoff, cliplength_cutoff, maxReads, threads,
+           e,
+           file = "countClippedReadsErr.RData")
+      e
     }
   )
   
@@ -675,15 +684,11 @@ countClippedReads.ctea <- function(ctea,
   tryCatch(
     cntdt <- rbindlist(lcnt),
     error = function(e) {
-      # nelem <- sapply(lcnt, function(x) length(unlist(x)))
-      # if(any(nelem != 15)) {
-      #   message("Missing element in row number: ", 
-      #           toString(which(nelem != 15))
-      #   )
-      ismsg <- sapply(lcnt, class) == "character"
-      if(any(ismsg)) {
-        message(lcnt[ismsg] %>% unlist %>%  unique %>% paste(collapse = "\n"))
-      }
+      save(ctea, bamfile, 
+           searchWidth, mapqFilter, shift_range, mismatch_cutoff, cliplength_cutoff, maxReads, threads,
+           lcnt,
+           e,
+           file = "countClippedReadsErr.RData")
       e
     }
   )
