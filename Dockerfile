@@ -79,6 +79,7 @@ RUN R -e "install.packages(c( \
           )); \
           BiocManager::install(c( \
             'GenomicAlignments', \
+            'GenomicFiles', \
             'BSgenome.Hsapiens.UCSC.hg19', \
             'BSgenome.Hsapiens.UCSC.hg38' \
           ))"

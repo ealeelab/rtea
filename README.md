@@ -17,6 +17,7 @@ RNA-TE fusion finder
    * optparse
    * Rcpp
    * GenomicAlignments
+   * GenomicFiles
    * BSgenome.Hsapiens.UCSC.hg19
    * BSgenome.Hsapiens.UCSC.hg38
 

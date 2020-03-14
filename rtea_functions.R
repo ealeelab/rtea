@@ -560,7 +560,7 @@ countClippedReads.ctea <- function(ctea,
                                    cliplength_cutoff = 4,
                                    maxReads = 1e6,
                                    threads = getOption("mc.cores", detectCores())) {
-  library(BiocParallel)
+  library(parallel)
   require(GenomicAlignments)
   require(data.table)
   require(GenomicFiles)
