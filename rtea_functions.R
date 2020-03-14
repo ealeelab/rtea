@@ -251,7 +251,7 @@ filterIn.ctea <- function(ctea, xtea, accept_width = 3) {
   ctea[inxtea == T, ]
 }
 
-filterNoClip.ctea <- function(ctea, similarity_cutoff = 75, threads = getDTthreads()) {
+filterNoClip.ctea <- function(ctea, similarity_cutoff = 75, threads = getOption("mc.cores", detectCores())) {
   require(bsgenomePKG,  character.only = T)
   genome <- get(bsgenomePKG)
   ctea[, start := pos]
@@ -288,7 +288,7 @@ filterNoClip.ctea <- function(ctea, similarity_cutoff = 75, threads = getDTthrea
   ctea[similar <= similarity_cutoff, ]
 }
 
-clippedBam <- function(bamfile, gr, searchWidth = 10L, mapqFilter = 1L, yieldSize = 1e6) {
+clippedBam <- function(bamfile, gr, mapqFilter = 1L, yieldSize = 1e6) {
   library(GenomicAlignments)
   library(GenomicFiles)
   
@@ -311,19 +311,18 @@ clippedBam <- function(bamfile, gr, searchWidth = 10L, mapqFilter = 1L, yieldSiz
 }
 
 getClippedReads <- function(bamfile, chr, pos, ori = c("f", "r"), 
-                            searchWidth = 0L,
-                            mapqFilter = 10L,
+                            searchWidth = 10L,
+                            mapqFilter = 1L,
+                            subsample = F,
                             maxReads = 1e6) {
   require(GenomicAlignments)
   gr <- GRanges(chr, 
                 IRanges(min(pos) - searchWidth, max(pos) + searchWidth), 
                 strand="*"
   )
-  
-  records <- countBam(bamfile, param = ScanBamParam(which = gr, mapqFilter = mapqFilter))$records
-  
-  sam <- if(records > maxReads) {
-    clippedBam(bamfile, gr, searchWidth = searchWidth, mapqFilter = mapqFilter, yieldSize = maxReads)
+
+  sam <- if(subsample) {
+    clippedBam(bamfile, gr, mapqFilter = mapqFilter, yieldSize = maxReads)
   } else {
     readGAlignments(
       bamfile, 
@@ -358,6 +357,7 @@ getClippedReads <- function(bamfile, chr, pos, ori = c("f", "r"),
     sam <- sam[order(secondary, split, othersplit)]
     isFirst <- bamFlagTest(mcols(sam)$flag, "isFirstMateRead")
     sam <- sam[!duplicated(paste(mcols(sam)$qname, isFirst)) & grepl("^\\d+S", cigar(sam))]
+    mcols(sam)$qname  <- NULL
     
     mcols(sam)$slen <- sub("S.*", "", cigar(sam)) %>% as.integer
     mcols(sam)$shift <- start(sam) - pos - 1
@@ -371,14 +371,12 @@ getClippedReads <- function(bamfile, chr, pos, ori = c("f", "r"),
     mcols(sam)$squal <- subseq(mcols(sam)$qual, 1, mcols(sam)$slen - mcols(sam)$shift) %>%
       as("IntegerList") %>%
       mean
+    mcols(sam)$qual <- NULL
     mcols(sam)$overhang <- sub("^[0-9]+S([0-9]+)M[0-9]+N.*", "\\1", cigar(sam)) %>%
       as.integer
     mcols(sam)$gap <- sub("^[^N]+?([0-9]+)N.*", "\\1", cigar(sam)) %>%
       as.integer
-    # sam <- sam[order(mcols(sam)$squal, decreasing=T)]
-    # sam <- sam[!duplicated(paste(end(sam), mcols(sam)$mpos))]
-    # sam <- sam[!duplicated(paste(mcols(sam)$sseq, strand(sam)))]
-    
+
   } else if(ori == "r") {
     # deduplication
     sam <- sam[end(sam) < pos + qwidth(sam)]
@@ -388,8 +386,8 @@ getClippedReads <- function(bamfile, chr, pos, ori = c("f", "r"),
     sam <- sam[order(secondary, split, othersplit)]
     isFirst <- bamFlagTest(mcols(sam)$flag, "isFirstMateRead")
     sam <- sam[!duplicated(paste(mcols(sam)$qname, isFirst)) & endsWith(cigar(sam), "S")]
-    
-    # sam <- sam[grep("^[0-9]+S", cigar(sam), invert = T)]
+    mcols(sam)$qname  <- NULL
+
     mcols(sam)$slen <- 
       explodeCigarOpLengths(cigar(sam), ops="S") %>%
       sapply(function(x) x[length(x)])
@@ -404,13 +402,11 @@ getClippedReads <- function(bamfile, chr, pos, ori = c("f", "r"),
     mcols(sam)$squal <- subseq(mcols(sam)$qual, -(mcols(sam)$slen + mcols(sam)$shift)) %>%
       as("IntegerList") %>%
       mean
+    mcols(sam)$qual <- NULL
     mcols(sam)$overhang <- sub(".*N([0-9]+)M[0-9]+S$", "\\1", cigar(sam)) %>%
       as.integer
     mcols(sam)$gap <- sub(".*?([0-9]+)N[^N]+$", "\\1", cigar(sam)) %>%
       as.integer
-    # sam <- sam[order(mcols(sam)$squal, decreasing=T)]
-    # sam <- sam[!duplicated(paste(start(sam), mcols(sam)$mpos))]
-    # sam <- sam[!duplicated(paste(mcols(sam)$sseq, strand(sam)))]
   }
   
   sam
@@ -562,8 +558,9 @@ countClippedReads.ctea <- function(ctea,
                                    shift_range = 0,
                                    mismatch_cutoff = 0.1, 
                                    cliplength_cutoff = 4,
-                                   threads = getDTthreads()) {
-  library(parallel)
+                                   maxReads = 1e6,
+                                   threads = getOption("mc.cores", detectCores())) {
+  library(BiocParallel)
   require(GenomicAlignments)
   require(data.table)
   require(GenomicFiles)
@@ -572,6 +569,7 @@ countClippedReads.ctea <- function(ctea,
   if(n == 0) {
     return( data.table(
       ctea, 
+      depth = numeric(0),
       matchCnt = integer(0),
       trueCnt = integer(0), 
       uniqueCnt = integer(0),
@@ -600,9 +598,10 @@ countClippedReads.ctea <- function(ctea,
     mc.preschedule = T, 
     SIMPLIFY = F,
     FUN = function(i, bamfile, chr, pos, ori, seq, family) {
-      if(n > 10) cat(sprintf("\r%0.2f%%              ", i/n*100))
+      cat(sprintf("\r%0.2f%%              ", i/n*100))
       if(anyNA(c(chr, pos, ori, seq))) {
         return(list(
+          depth = NA_real_,
           matchCnt = NA_integer_,
           trueCnt = NA_integer_, 
           uniqueCnt = NA_integer_,
@@ -622,7 +621,18 @@ countClippedReads.ctea <- function(ctea,
           nonspecificTE = NA_real_
         ))
       }
-      sam <- getClippedReads(bamfile, chr, pos, ori, searchWidth = searchWidth, mapqFilter = mapqFilter)
+      records <- countBam(
+        bamfile, 
+        param = ScanBamParam(which = GenomicRanges(chr, IRanges(pos - searchWidth, pos + searchWidth), "*"), 
+                             mapqFilter = mapqFilter)
+      )$records
+      sam <- getClippedReads(bamfile, 
+                             chr, pos, ori, 
+                             subsample = records > maxReads,
+                             searchWidth = searchWidth, 
+                             mapqFilter = mapqFilter, 
+                             maxReads = maxReads
+      )
       meta <- mcols(sam)
       differ <- compareClippedSeq(meta$sseq, seq, ori, shift_range = shift_range)
       isMatch <- differ < mismatch_cutoff
@@ -636,8 +646,9 @@ countClippedReads.ctea <- function(ctea,
       mateOverlap <- meta$mpos %between% list(start(sam) - 3, end(sam) + 3)
       isOverClip <- isProperPair & !mateOverlap & isMateSide & isMatch & !isPolyA
       possibleDup <- duplicated(paste(nchar(meta$sseq), meta$mpos)) | duplicated(meta$sseq)
-      isTEread <- TEalignScore(mcols(sam)$seq, family)
+      isTEread <- TEalignScore(meta$seq, family)
       list(
+        depth = records / (2 * searchWidth + 1),
         matchCnt = sum(isMatch),
         trueCnt = sum(isMatch & !shortClip & !isPolyA), 
         uniqueCnt = sum(isMatch & !possibleDup & !shortClip),
@@ -686,7 +697,7 @@ countClippedReads.default <- function(chr, pos, ori, seq,
                                       shift_range = 0,
                                       mismatch_cutoff = 0.1, 
                                       cliplength_cutoff = 4,
-                                      threads = getDTthreads()) {
+                                      threads = getOption("mc.cores", detectCores())) {
   require(data.table)
   ctea <- data.table(chr = chr, pos = pos, ori = ori, seq = seq)
   countClippedReads.ctea(
@@ -708,7 +719,7 @@ countBothClippedReads <- function(chr,
                                   shift_range = 0,
                                   mismatch_cutoff = 0.1, 
                                   cliplength_cutoff = 4,
-                                  threads = getDTthreads()) {
+                                  threads = getOption("mc.cores", detectCores())) {
   require(data.table)
   fcnt <- countClippedReads.default(
     chr, fpos, "f", fseq,
@@ -988,7 +999,7 @@ localHardClip <- function(rtea,
                           mateDistMax = 100000,
                           overhangmin = 5,
                           score_cutoff = 10,
-                          threads = getDTthreads()) {
+                          threads = getOption("mc.cores", detectCores())) {
   require(bsgenomePKG, character.only = T)
   genome <- get(bsgenomePKG)
   searchstart <- searchend <- rtea$pos  # ungapPos.rtea(rtea)
@@ -1091,7 +1102,7 @@ localHardClip <- function(rtea,
   data.table(rtea, salign[, hardstart:hardSpl])
 }
 
-TEcoordinate <- function(rtea, threads = getDTthreads()) {
+TEcoordinate <- function(rtea, threads = getOption("mc.cores", detectCores())) {
   require(Biostrings)
   require(parallel)
   msg("Reading TE fasta file...")
