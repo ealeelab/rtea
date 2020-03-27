@@ -34,8 +34,8 @@ SAMTOFQ_CMD="java -jar $PICARD $nl
    VALIDATION_STRINGENCY=LENIENT"
 
 RNATEA_CMD="$RNATEA_PIPELINE $nl
-   $R1 $nl
-   $R2 $nl
+   ${R1}.gz $nl
+   ${R2}.gz $nl
    $PREFIX $nl
    $HISAT_REF $nl
    $THREADS $nl
@@ -63,10 +63,10 @@ RunCMD() {
   echo "Exit status: $ES"
   if [ $ES -ne 0 -o ! -s $OUTFILE ]
   then
-    echo -d $CMD > ${OUTFILE}.fail
+    echo -e $CMD > ${OUTFILE}.fail
     exit $ES
   fi
-    echo -d $CMD > ${OUTFILE}.done
+    echo -e $CMD > ${OUTFILE}.done
   return $ES
 }
 
@@ -75,6 +75,11 @@ echo
 echo ${LINE}SamToFastq${LINE}
 RunCMD $R1 $SAMTOFQ_CMD
 echo
+
+gzip $R1 &
+gzip $R2 &
+wait
+
 echo ${LINE}
 RunCMD $RTEA_OUTPUT $RNATEA_CMD
 echo DONE.

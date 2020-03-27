@@ -79,10 +79,12 @@ RUN R -e "install.packages(c( \
           )); \
           BiocManager::install(c( \
             'GenomicAlignments', \
-            'GenomicFiles', \
             'BSgenome.Hsapiens.UCSC.hg19', \
             'BSgenome.Hsapiens.UCSC.hg38' \
           ))"
+
+RUN apt-get update && apt-get install -y libssl-dev
+RUN R -e 'BiocManager::install("GenomicFiles")'
 
 # rtea
 COPY . rtea/

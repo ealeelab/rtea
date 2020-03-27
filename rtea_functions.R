@@ -288,7 +288,7 @@ filterNoClip.ctea <- function(ctea, similarity_cutoff = 75, threads = getOption(
   ctea[similar <= similarity_cutoff, ]
 }
 
-clippedBam <- function(bamfile, gr, mapqFilter = 1L, yieldSize = 1e6) {
+clippedBam <- function(bamfile, gr, mapqFilter = 1L, yieldSize = 1e5) {
   library(GenomicAlignments)
   library(GenomicFiles)
   
@@ -314,7 +314,7 @@ getClippedReads <- function(bamfile, chr, pos, ori = c("f", "r"),
                             searchWidth = 10L,
                             mapqFilter = 1L,
                             subsample = F,
-                            maxReads = 1e6) {
+                            maxReads = 1e5) {
   require(GenomicAlignments)
   gr <- GRanges(chr, 
                 IRanges(min(pos) - searchWidth, max(pos) + searchWidth), 
@@ -558,7 +558,7 @@ countClippedReads.ctea <- function(ctea,
                                    shift_range = 0,
                                    mismatch_cutoff = 0.1, 
                                    cliplength_cutoff = 4,
-                                   maxReads = 1e6,
+                                   maxReads = 1e5,
                                    threads = getOption("mc.cores", detectCores())) {
   library(BiocParallel)
   require(GenomicAlignments)
@@ -672,24 +672,26 @@ countClippedReads.ctea <- function(ctea,
       BPPARAM = MulticoreParam(workers = threads, stop.on.error = T)
     ),
     bplist_error = function(e) {
+      message(e, "\n")
       save(ctea, bamfile, 
            searchWidth, mapqFilter, shift_range, mismatch_cutoff, cliplength_cutoff, maxReads, threads,
            e,
            file = "countClippedReadsErr.RData")
-      e
+      quit("no", 1)
     }
   )
   
   msg("Counting done.")
-  tryCatch(
-    cntdt <- rbindlist(lcnt),
+  cntdt <- tryCatch(
+    rbindlist(lcnt),
     error = function(e) {
+      message(e, "\n")
       save(ctea, bamfile, 
            searchWidth, mapqFilter, shift_range, mismatch_cutoff, cliplength_cutoff, maxReads, threads,
            lcnt,
            e,
            file = "countClippedReadsErr.RData")
-      e
+      quit("no", 1)
     }
   )
   stopifnot(ctea[, .N] == cntdt[, .N])
@@ -781,8 +783,8 @@ unique.rtea <- function(rtea,
     queryIdx <- queryHits(ovlap[i])
     subjectIdx <- subjectHits(ovlap[i])
     
-    if(rtea[queryIdx, is.na(class)] |
-       rtea[subjectIdx, is.na(class)] |
+    if(rtea[queryIdx, is.na(TEscore)] |
+       rtea[subjectIdx, is.na(TEscore)] |
        rtea[queryIdx, class] != rtea[subjectIdx, class]) {
       next
     }
