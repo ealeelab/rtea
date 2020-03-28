@@ -78,6 +78,6 @@ RunCMD() {
 RunCMD $TRIMMED_R1 $fastpCMD
 RunCMD ${OUT_PREFIX}.hisat2.presort.bam $cmd
 RunCMD ${OUT_PREFIX}.hisat2.bam samtools sort -@ $threads -o ${OUT_PREFIX}.hisat2.bam ${OUT_PREFIX}.hisat2.presort.bam
-RunCMD ${OUT_PREFIX}.hisat2.bam.bai samtools index ${OUT_PREFIX}.hisat2.bam
+RunCMD ${OUT_PREFIX}.hisat2.bam.bai samtools index -@ $threads ${OUT_PREFIX}.hisat2.bam
 rm -f $TRIMMED_R1 $TRIMMED_R2
 rm -f ${OUT_PREFIX}.hisat2.presort.bam

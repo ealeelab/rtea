@@ -1,6 +1,6 @@
-#!/usr/bin/Rscript
+#!/bin/env Rscript
 #SBATCH -p short
-#SBATCH -t 0-01:30
+#SBATCH -t 0-03:00
 #SBATCH -c 4
 #SBATCH --mem=30G
 #SBATCH -o rtea_pipeline.sh.%j.out

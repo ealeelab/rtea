@@ -366,7 +366,8 @@ getClippedReads <- function(bamfile, chr, pos, ori = c("f", "r"),
       return(sam)
     }
     sam <- sam[abs(mcols(sam)$shift) < searchWidth & 
-                 mcols(sam)$slen - mcols(sam)$shift > 0]
+                 mcols(sam)$slen - mcols(sam)$shift > 0 &
+                 mcols(sam)$slen - mcols(sam)$shift <= width(mcols(sam)$seq)]
     mcols(sam)$sseq <- subseq(mcols(sam)$seq, 1, mcols(sam)$slen - mcols(sam)$shift)
     mcols(sam)$squal <- subseq(mcols(sam)$qual, 1, mcols(sam)$slen - mcols(sam)$shift) %>%
       as("IntegerList") %>%
@@ -397,7 +398,8 @@ getClippedReads <- function(bamfile, chr, pos, ori = c("f", "r"),
       return(sam)
     }
     sam <- sam[abs(mcols(sam)$shift) < searchWidth & 
-                 mcols(sam)$slen + mcols(sam)$shift > 0]
+                 mcols(sam)$slen + mcols(sam)$shift > 0 &
+                 mcols(sam)$slen + mcols(sam)$shift <= width(mcols(sam)$seq)]
     mcols(sam)$sseq <- subseq(mcols(sam)$seq, -(mcols(sam)$slen + mcols(sam)$shift))
     mcols(sam)$squal <- subseq(mcols(sam)$qual, -(mcols(sam)$slen + mcols(sam)$shift)) %>%
       as("IntegerList") %>%
@@ -677,7 +679,7 @@ countClippedReads.ctea <- function(ctea,
            searchWidth, mapqFilter, shift_range, mismatch_cutoff, cliplength_cutoff, maxReads, threads,
            e,
            file = "countClippedReadsErr.RData")
-      quit("no", 1)
+      # quit("no", 1)
     }
   )
   
@@ -690,8 +692,8 @@ countClippedReads.ctea <- function(ctea,
            searchWidth, mapqFilter, shift_range, mismatch_cutoff, cliplength_cutoff, maxReads, threads,
            lcnt,
            e,
-           file = "countClippedReadsErr.RData")
-      quit("no", 1)
+           file = "countClippedReadsRbindErr.RData")
+      # quit("no", 1)
     }
   )
   stopifnot(ctea[, .N] == cntdt[, .N])
