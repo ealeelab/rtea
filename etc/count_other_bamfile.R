@@ -16,7 +16,7 @@ thisdir <- if(length(this) == 1) {
 
 option_list <- list( 
   make_option(c("-r", "--rteafile"), help = "rtea output file path"),
-  make_option(c("-b", "--bamfile"), help = "wgs bam file path"),
+  make_option(c("-b", "--bamfile"), help = "bam file path"),
   make_option(c("-o", "--outfile"), help = "output file path"),
   make_option(c("-t", "--threads"), type = "integer", default = 2, help = "number of threads"),
   make_option(c("--rtea_script"), default = file.path(thisdir, "../rtea_functions.R"), help = "rtea Rscript file")
@@ -39,8 +39,14 @@ RTEA <- new.env()
 sys.source(rtea_script, RTEA, chdir = T)
 attach(RTEA)
 
+library(Rsamtools)
+chrnames <- names(scanBamHeader(bamfile)[[1]]$targets)
 rtea <- fread(rteafile)
-rtea[, chr := paste0("chr", chr)]
+if(startsWith(chrnames[1], "chr")) {
+  rtea[, chr := pastechr(chr)]
+} else {
+  rtea[, chr := sub("^chr", "", chr)]
+}
 wgscnt <- countClippedReads.ctea(rtea[, chr:TEbreak], bamfile)
 wgscnt %<>% data.table(rtea[, gene_id:polyTE])
 fwrite(wgscnt, outfile, sep = "\t", na = "NA", quote = F)
