@@ -143,7 +143,7 @@ grLocator <- function(chr, start, end = start,
   matchdata <- data.table(idx = queryHits(overlap),
                           refdt[subjectHits(overlap), ]
   )
-  matchdata <- matchdata[, lapply(.SD, function(x) paste(unique(x), collapse = ",")), by = idx]
+  matchdata <- matchdata[, lapply(.SD, function(x) str_c(unique(x), collapse = ",")), by = idx]
   anno <- matchdata[match(seq_len(sum(!isNA)), idx), !"idx"]  # include non-matched position as NA
   allidx <- rep(NA_integer_, length(start))
   allidx[!isNA] <- seq_len(sum(!isNA))
@@ -671,7 +671,7 @@ countClippedReads.ctea <- function(ctea,
       ctea$chr, ctea$pos, ctea$ori, ctea$seq, ctea$family,
       MoreArgs = list(bamfile = bamfile),
       SIMPLIFY = F,
-      BPPARAM = MulticoreParam(workers = threads, stop.on.error = T)
+      BPPARAM = MulticoreParam(workers = threads, stop.on.error = T, tasks = n)
     ),
     bplist_error = function(e) {
       message(e, "\n")
@@ -763,69 +763,112 @@ ungapPos.rtea <- function(rtea, overhang_cutoff = 5L) {
   ungappos
 }
 
-unique.rtea <- function(rtea, 
-                        overhang_cutoff = 10L, maxgap = 10L, 
-                        verbose = getOption("verbose", F)) {
+# unique.rtea <- function(rtea, 
+#                         overhang_cutoff = 10L, 
+#                         maxgap = 10L, 
+#                         alignscore_cutoff = 20,
+#                         verbose = getOption("verbose", F)) {
+#   # To do: can be parallelized over same groups
+#   library(GenomicRanges)
+#   library(Biostrings)
+#   ungappos <- ungapPos.rtea(rtea, overhang_cutoff = overhang_cutoff)
+#   rgr <- rtea[, GRanges(chr, IRanges(ungappos, ungappos), ifelse(ori == "f", "+", "-"))]
+#   ovlap <- findOverlaps(rgr, rgr, maxgap = maxgap)
+#   ovlap %<>% .[queryHits(.) < subjectHits(.)]
+# 
+#   msg("Finding duplicates...")
+#   for(i in seq_along(ovlap)) {
+#     if(verbose) {
+#       cat(sprintf("\r%0.2f%%          ", i/length(ovlap)*100))
+#     }
+#     
+#     queryIdx <- queryHits(ovlap[i])
+#     subjectIdx <- subjectHits(ovlap[i])
+#     
+#     if(rtea[queryIdx, is.na(TEscore)] |
+#        rtea[subjectIdx, is.na(TEscore)] |
+#        rtea[queryIdx, class] != rtea[subjectIdx, class]) {
+#       next
+#     }
+#     
+#     if(rtea[c(queryIdx, subjectIdx), all(grepl("^A+$", seq)) | all(grepl("^T+$", seq))]) {
+#       queryselect <- rtea[queryIdx, nchar(seq)] > rtea[subjectIdx, nchar(seq)]
+#       if(rtea[queryIdx, nchar(seq)] == rtea[subjectIdx, nchar(seq)]) {
+#         queryselect <- rtea[queryIdx, uniqueCnt] >= rtea[subjectIdx, uniqueCnt]
+#       }
+#     } else {
+#       align <- pairwiseAlignment(rtea[queryIdx, seq], rtea[subjectIdx, seq], type = "local")
+#       if(score(align) < alignscore_cutoff) {
+#         next
+#       }
+#       queryselect <- rtea[queryIdx, TEscore] > rtea[subjectIdx, TEscore]
+#       if(rtea[queryIdx, TEscore] == rtea[subjectIdx, TEscore]) {
+#         queryselect <- rtea[queryIdx, uniqueCnt] >= rtea[subjectIdx, uniqueCnt]
+#       }
+#     }
+# 
+#     if(queryselect) {
+#       rtea[subjectIdx, ] <- rtea[queryIdx, ]
+#     } else {
+#       rtea[queryIdx, ] <- rtea[subjectIdx, ]
+#     }
+#   }
+#   
+#   unique(rtea)
+# 
+# }
+
+unique.rtea <- function(rtea, ...) {
+  rtea[is.na(duplicate.rtea(rtea, ...))]
+}
+
+duplicate.rtea <- function(rtea, 
+                        overhang_cutoff = 10L, 
+                        maxgap = 10L) {
   library(GenomicRanges)
   library(Biostrings)
   ungappos <- ungapPos.rtea(rtea, overhang_cutoff = overhang_cutoff)
   rgr <- rtea[, GRanges(chr, IRanges(ungappos, ungappos), ifelse(ori == "f", "+", "-"))]
-  ovlap <- findOverlaps(rgr, rgr, maxgap = maxgap)
-  ovlap %<>% .[queryHits(.) < subjectHits(.)]
-  # natostring <- function(x) {
-  #   x[is.na(x)] <- "NA"
-  #   x
-  # }
-  msg("Finding duplicates...")
-  for(i in seq_along(ovlap)) {
-    if(verbose) {
-      cat("\r", i / length(ovlap) * 100, "     ")  
-    }
-    
-    queryIdx <- queryHits(ovlap[i])
-    subjectIdx <- subjectHits(ovlap[i])
-    
-    if(rtea[queryIdx, is.na(TEscore)] |
-       rtea[subjectIdx, is.na(TEscore)] |
-       rtea[queryIdx, class] != rtea[subjectIdx, class]) {
-      next
-    }
-    align <- pairwiseAlignment(rtea[queryIdx, seq], rtea[subjectIdx, seq], type = "local")
-    if(score(align) < 20) {
-      next
-    }
-    
-    queryselect <- rtea[queryIdx, TEscore] > rtea[subjectIdx, TEscore]
-    if(rtea[queryIdx, TEscore] == rtea[subjectIdx, TEscore]) {
-      queryselect <- rtea[queryIdx, uniqueCnt] >= rtea[subjectIdx, uniqueCnt]
-    }
-    
-    if(queryselect) {
-      rtea[subjectIdx, ] <- rtea[queryIdx, ]
-    } else {
-      rtea[queryIdx, ] <- rtea[subjectIdx, ]
-    }
-  }
-  
-  unique(rtea)
-  # To do: can be parallelized over same groups
-  # ovlap <- findOverlaps(rgr, rgr, maxgap = maxgap) %>% data.frame %>% data.table
-  # ovlap %<>% .[queryHits < subjectHits]
-  # ovlap[, groupid := queryHits]
-  # ovlap <- merge(ovlap, 
-  #                ovlap[!duplicated(subjectHits), .(queryHits = subjectHits, groupid2 = groupid)], 
-  #                all.x = T
+  ovlap <- findOverlaps(rgr, rgr, maxgap = maxgap, select = "all")
+  # ovlap %<>% .[queryHits(.) >= subjectHits(.)]
+  # mcols(ovlap)$score <- mclapply(
+  #   seq_along(ovlap), 
+  #   function(i) {
+  #     qh <- queryHits(ovlap[i])
+  #     sh <- subjectHits(ovlap[i])
+  #     if(qh ==  sh) {
+  #       alignscore_cutoff
+  #     } else {
+  #       pairwiseAlignment(rtea[qh, seq], rtea[sh, seq], type = "local") %>% score
+  #     }
+  #   },
+  #   mc.cores = threads
   # )
-  # while(ovlap[!is.na(groupid2), any(groupid != groupid2)]) {
-  #   ovlap[!is.na(groupid2), groupid := groupid2]
-  #   ovlap[, groupid2 := NULL]
-  #   ovlap <- merge(ovlap, 
-  #                  ovlap[!duplicated(subjectHits), .(queryHits = subjectHits, groupid2 = groupid)], 
-  #                  all.x = T
-  #   )
-  # }
+  # ovlap %<>% .[mcols(.)$score >= alignscore_cutoff]
+  ovlist <- as.list(ovlap)
+  lowgrp <-sapply(ovlist, function(x) min(unlist(ovlist[x])))
+  grp <- sapply(ovlist, function(x) min(lowgrp[x]))
+  while(!identical(lowgrp, grp)) {
+    lowgrp <- grp
+    grp <- sapply(ovlist, function(x) min(lowgrp[x]))
+  }
+  dupgrp <- which(table(grp) > 1) %>% names %>% as.integer
   
-  
+  bestone <- sapply(dupgrp, function(g) {
+    idx <- which(grp == g)
+    highscore <- rtea[idx, TEscore] %>% {idx[. == max(., na.rm = T)]} %>% na.omit
+    if(length(highscore) == 0) {
+      highscore <- idx
+    }
+    highcnt <- rtea[highscore, uniqueCnt] %>% {highscore[. == max(.)]}
+    prox <- if(rtea[highcnt, ori][1] == "f") {
+      rtea[highcnt, pos] %>% {highcnt[. == max(.)]}
+    } else {
+      rtea[highcnt, pos] %>% {highcnt[. == min(.)]}
+    }
+    prox
+  })
+  bestone[match(grp, dupgrp)]
 }
 
 matchScallop.ctea <- function(ctea, scallopfile, matchrange = 300, overhangmin = 5) {
@@ -851,6 +894,96 @@ matchScallop.ctea <- function(ctea, scallopfile, matchrange = 300, overhangmin =
        scallop_id := grLocator(chr, pos - gap, refgr = rgr)]
   ctea
 }
+
+annotateScallop.ctea <- function(rtea, scallopfile, gencodefile, threads = getOption("mc.cores", 2)) {
+  require(rtracklayer)
+  msg("Loading gencode...")
+  gencode <- import(gencodefile, "gtf")
+  exons <- subset(gencode, type == "exon")
+  rm(gencode)
+  seqlevels(exons) %<>% sub("chr", "", .)
+  exons %<>% .[order(.$transcript_id)]
+  msg("Annotating scallop transcript...")
+  
+  scallop <- import(scallopfile, "gtf")
+  seqlevels(scallop) %<>% sub("chr", "", .)
+  
+  n <- nrow(rtea)
+  lsclanno <- mclapply(
+    seq_len(n), 
+    mc.cores = threads,
+    function(idx) {
+      cat(sprintf("\r%0.2f%%              ", idx/n*100))
+      
+      if(is.na(rtea[idx, scallop_id])) {
+        return(list(scallop_type = NA))
+      }
+      scallop_id <- strsplit(rtea[idx, scallop_id], ",")[[1]]
+      clippos <- ungapPos.rtea(rtea[idx])
+      ori <- rtea[idx, ori]
+      hardpos <- rtea[idx, ifelse(ori == "f", hardstart, hardend)]
+      tepos <- ifelse(is.na(hardpos), clippos, hardpos)
+      
+      whichTranscript <- function(scl, overlapprop_cutoff = 0.7) {
+        scl %<>% subset(type == "exon")
+        ovtid <- subsetByOverlaps(exons, scl)$transcript_id %>% unique
+        overlapsize <- sapply(ovtid, 
+                              function(x) subset(exons, transcript_id == x) %>% 
+                                intersect(scl) %>% 
+                                width %>% 
+                                sum
+        ) 
+        bestid <- overlapsize %>%
+          .[. > sum(width(scl)) * overlapprop_cutoff] %>%
+          {names(.)[which.max(.)]}
+        subset(exons, transcript_id == bestid)
+      }
+      trpt <- whichTranscript(subset(scallop, transcript_id %in% scallop_id))
+      
+      if(length(trpt) == 0) {
+        return(list(scallop_type = "novel transcript"))
+      } else {
+        strand <- as.character(strand(trpt[1]))  
+        if(tepos < min(start(trpt))) {
+          if(ori == "r") {
+            return(list(scallop_type = NA))
+          }
+          if(strand == "+") {
+            scallop_type <- "alternative TSS"
+          } else {
+            scallop_type <- "read-through"  
+          }
+        } else if(tepos > max(end(trpt))) {
+          if(ori == "f") {
+            return(list(scallop_type = NA))
+          }
+          if(strand == "+") {
+            scallop_type <- "read-through"
+          } else {
+            scallop_type <- "alternative TSS"  
+          }
+        } else {
+          scallop_type <- "exonization"
+        }
+        scallop_gene_id <- trpt$gene_id[1]
+        scallop_gene_name <- trpt$gene_name[1]
+        scallop_transcript_id <- trpt$transcript_id[1]
+        scallop_transcript_name <- trpt$transcript_name[1]
+        scallop_gene_type <- trpt$gene_type[1]
+      }
+      
+      list(scallop_type = scallop_type, 
+           scallop_gene_id = scallop_gene_id, 
+           scallop_gene_name = scallop_gene_name,
+           scallop_transcript_id = scallop_transcript_id, 
+           scallop_transcript_name = scallop_transcript_name, 
+           scallop_gene_type = scallop_gene_type
+      )
+    })
+  
+  data.table(rtea, rbindlist(lsclanno, fill = T))
+}
+
 
 nearbyfusions <- function(ctea, matchrange = 10000, maxTSD = 10, overhangmin = 5) {
   library(GenomicRanges)
