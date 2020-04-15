@@ -430,14 +430,18 @@ compareClippedSeq <- function(sseq, seq, ori,
   longseq <- nchar(sseq) > nchar(seq)
   sseq[longseq] <- subseqprox(sseq[longseq], nchar(seq))
   sseq[nchar(sseq) < min_length] <- "N"
-  seq <- DNAStringSet(seq)
-  differ <- lapply(sseq, function(x) {
-    subseqprox(seq, nchar(x)) %>%
-      c(DNAStringSet(x)) %>%
-      stringDist %>%
-      `/`(nchar(x))
-  }) %>% unlist
-  
+  gseq <- if(ori == "f") {
+    paste0(stringr::str_dup(".", nchar(seq) - nchar(sseq)), sseq)
+  } else {
+    paste0(sseq, stringr::str_dup(".", nchar(seq) - nchar(sseq)))
+  }
+  seq %<>% DNAStringSet
+  matchscore <- nucleotideSubstitutionMatrix(match = 0, mismatch = 1, baseOnly = TRUE) %>%
+    cbind(N = 0, . = 0) %>% 
+    rbind(N = 0, . = 0)
+  differ <- sapply(gseq, function(x) {
+    stringDist(c(seq, x), method = "substitutionMatrix", substitutionMatrix = matchscore, gapOpening = 100)
+  }) / nchar(sseq)
   if(nchar(seq) < 2) shift_range <- 0
   if(shift_range <= 0) {
     differ
@@ -470,6 +474,7 @@ compareClippedSeq <- function(sseq, seq, ori,
     )
   }
 }
+
 
 consensusClip <- function(bamfile, chr, pos, ori, searchWidth = 10) {
   require(Biostrings)
@@ -819,14 +824,19 @@ ungapPos.rtea <- function(rtea, overhang_cutoff = 5L) {
 # }
 
 unique.rtea <- function(rtea, ...) {
-  rtea[is.na(duplicate.rtea(rtea, ...))]
+  dup <- duplicate.rtea(rtea, ...)
+  rtea[is.na(dup) | dup == seq_along(dup)]
 }
 
 duplicate.rtea <- function(rtea, 
                         overhang_cutoff = 10L, 
-                        maxgap = 10L) {
+                        maxgap = 10L,
+                        threads = 1) {
   library(GenomicRanges)
   library(Biostrings)
+  opt <- options(mc.cores = threads)
+  on.exit(options(opt))
+  
   ungappos <- ungapPos.rtea(rtea, overhang_cutoff = overhang_cutoff)
   rgr <- rtea[, GRanges(chr, IRanges(ungappos, ungappos), ifelse(ori == "f", "+", "-"))]
   ovlap <- findOverlaps(rgr, rgr, maxgap = maxgap, select = "all")
@@ -846,15 +856,15 @@ duplicate.rtea <- function(rtea,
   # )
   # ovlap %<>% .[mcols(.)$score >= alignscore_cutoff]
   ovlist <- as.list(ovlap)
-  lowgrp <-sapply(ovlist, function(x) min(unlist(ovlist[x])))
-  grp <- sapply(ovlist, function(x) min(lowgrp[x]))
+  lowgrp <-mclapply(ovlist, function(x) min(unlist(ovlist[x]))) %>% unlist
+  grp <- mclapply(ovlist, function(x) min(lowgrp[x])) %>% unlist
   while(!identical(lowgrp, grp)) {
     lowgrp <- grp
-    grp <- sapply(ovlist, function(x) min(lowgrp[x]))
+    grp <- mclapply(ovlist, function(x) min(lowgrp[x])) %>% unlist
   }
   dupgrp <- which(table(grp) > 1) %>% names %>% as.integer
   
-  bestone <- sapply(dupgrp, function(g) {
+  bestone <- mclapply(dupgrp, function(g) {
     idx <- which(grp == g)
     highscore <- rtea[idx, TEscore] %>% {idx[. == max(., na.rm = T)]} %>% na.omit
     if(length(highscore) == 0) {
@@ -866,8 +876,8 @@ duplicate.rtea <- function(rtea,
     } else {
       rtea[highcnt, pos] %>% {highcnt[. == min(.)]}
     }
-    prox
-  })
+    prox[1]
+  }) %>% unlist
   bestone[match(grp, dupgrp)]
 }
 
@@ -985,21 +995,45 @@ annotateScallop.ctea <- function(rtea, scallopfile, gencodefile, threads = getOp
 }
 
 
-nearbyfusions <- function(ctea, matchrange = 10000, maxTSD = 10, overhangmin = 5) {
+nearbypair <- function(rtea, 
+                          overhang_cutoff = 10L, 
+                          maxTSD = 10,
+                          maxgap = 2e5L) {
   library(GenomicRanges)
-  rctea <- ctea[ori == "r"]
-  fctea <- ctea[ori == "f"]
-  rctea[overhang <= overhangmin, pos := pos - gap]
-  fctea[overhang <= overhangmin, pos := pos + gap]
-  rgr <- rctea[, GRanges(chr, IRanges(pos - maxTSD, pos + matchrange), strand = "*")]
-  fgr <- fctea[, GRanges(chr, IRanges(pos, pos), strand = "*")]
 
-  ovl <- findOverlaps(rgr, fgr)
-  sameclass <- rctea[queryHits(ovl), class] == fctea[subjectHits(ovl), class] |
-    xor(rctea[queryHits(ovl), isPolyA], fctea[subjectHits(ovl), isPolyA])
-  nearctea <- rbind(rctea[queryHits(ovl[sameclass])],
-                    fctea[subjectHits(ovl[sameclass])])
-  unique(nearctea[order(as.integer(chr), pos)])
+  rtea[, ungappos := ungapPos.rtea(rtea, overhang_cutoff = overhang_cutoff)]
+  rgrr <- rtea[ori == "r", GRanges(chr, IRanges(ungappos, ungappos))]
+  rgrf <- rtea[ori == "f", GRanges(chr, IRanges(ungappos, ungappos))]
+  ovlap <- findOverlaps(rgrr, rgrf, maxgap = maxgap, select = "all")
+  ovlap %<>% .[rtea[ori == "r"][queryHits(.), ungappos] < rtea[ori == "f"][subjectHits(.), ungappos]] + maxTSD
+  pairr <- rtea[ori == "r"][queryHits(ovlap)]
+  pairf <- rtea[ori == "f"][subjectHits(ovlap)]
+  meta <- data.table(
+    dist = pairf$ungappos - pairr$ungappos,
+    sameGene = pairr$gene_name == pairf$gene_name,
+    sameSource = abs(pairf$hardstart - pairr$hardend) < 6000 & pairf$hardTE == pairf$hardTE,
+    classr = pairr$class,
+    classf = pairf$class
+  )
+  meta[pairr$class == pairf$class, class := classr]
+  meta[pairr$class != pairf$class, class := "different"]
+  meta[pairr$isPolyA == T, class := classf]
+  meta[pairf$isPolyA == T & classr != "PolyA", class := classr]
+  meta[pairr$isPolyA & !pairf$isPolyA, polyA := "r"]
+  meta[!pairr$isPolyA & pairf$isPolyA, polyA := "f"]
+  meta[pairr$isPolyA & pairf$isPolyA, polyA := "both"]
+  meta[!pairr$isPolyA & !pairf$isPolyA, polyA := "none"]
+  meta[, Passed := F]
+  meta[pairr$Filter == "PASS" & pairf$Filter == "PASS", Passed := T]
+  meta[pairr$Filter == "PASS" & pairf$isPolyA, Passed := T]
+  meta[pairf$Filter == "PASS" & pairr$isPolyA, Passed := T]
+  meta[, classr := NULL]
+  meta[, classf := NULL]
+  
+  list(r = pairr, 
+       f = pairf,
+       meta = meta,
+  )
   
 }
 
