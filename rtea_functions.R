@@ -572,54 +572,37 @@ countClippedReads.ctea <- function(ctea,
   require(data.table)
   require(GenomicFiles)
   
+  NAresult <- list(
+    depth = NA_real_,
+    matchCnt = NA_integer_,
+    trueCnt = NA_integer_, 
+    uniqueCnt = NA_integer_,
+    bothClip = NA_integer_,
+    polyAcnt = NA_integer_,
+    falseCnt = NA_integer_, 
+    discCnt = NA_integer_,
+    baseQual = NA_real_, 
+    lowMapQual = NA_integer_,
+    clustered = NA_real_,
+    anyOverClip = NA_integer_,
+    mateDist = NA_integer_,
+    anyWrongPos = NA_integer_,
+    overhang = NA_integer_,
+    gap = NA_integer_,
+    secondary = NA_real_,
+    editDistance = NA_real_,
+    nonspecificTE = NA_real_
+  )
+  
   n <- nrow(ctea)
   if(n == 0) {
-    return( data.table(
-      ctea, 
-      depth = numeric(0),
-      matchCnt = integer(0),
-      trueCnt = integer(0), 
-      uniqueCnt = integer(0),
-      bothClip = integer(0),
-      polyAcnt = integer(0),
-      falseCnt = integer(0), 
-      discCnt = integer(0),
-      baseQual = numeric(0), 
-      clustered = numeric(0),
-      anyOverClip = integer(0),
-      mateDist = integer(0),
-      anyWrongPos = integer(0),
-      overhang = integer(0),
-      gap = integer(0),
-      secondary = numeric(0),
-      editDistance = numeric(0),
-      nonspecificTE = numeric(0)
-    ) )
+    return( lapply(NAresult, `[`, 0) )
   }
   msg("Counting clipped reads...")
   countThis <- function(i, bamfile, chr, pos, ori, seq, family) {
     cat(sprintf("\r%0.2f%%              ", i/n*100))
     if(anyNA(c(chr, pos, ori, seq))) {
-      return(list(
-        depth = NA_real_,
-        matchCnt = NA_integer_,
-        trueCnt = NA_integer_, 
-        uniqueCnt = NA_integer_,
-        bothClip = NA_integer_,
-        polyAcnt = NA_integer_,
-        falseCnt = NA_integer_, 
-        discCnt = NA_integer_,
-        baseQual = NA_real_, 
-        clustered = NA_real_,
-        anyOverClip = NA_integer_,
-        mateDist = NA_integer_,
-        anyWrongPos = NA_integer_,
-        overhang = NA_integer_,
-        gap = NA_integer_,
-        secondary = NA_real_,
-        editDistance = NA_real_,
-        nonspecificTE = NA_real_
-      ))
+      return(NAresult)
     }
     records <- countBam(
       bamfile, 
@@ -633,6 +616,15 @@ countClippedReads.ctea <- function(ctea,
                            mapqFilter = mapqFilter, 
                            maxReads = maxReads
     )
+    
+    if(length(sam) == 0) {
+      res <- NAresult
+      res$depth <- records / (2 * searchWidth + 1)
+      cntidx <- grep("Cnt", names(res))
+      res[cntidx] <- 0
+      return(res)
+    }
+    
     meta <- mcols(sam)
     differ <- compareClippedSeq(meta$sseq, seq, ori, shift_range = shift_range)
     isMatch <- differ < mismatch_cutoff
