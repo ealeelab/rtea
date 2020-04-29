@@ -1,0 +1,104 @@
+#!/bin/bash
+
+R1=$1
+R2=$2
+PREFIX=$3
+HISAT_REF=$4
+THREADS=$5
+OUT_DIR=${6:-$PWD}
+BUILD=${7:-"hg38"}
+RESUME=${8:-"overwrite"}
+
+FQQC=${OUT_DIR}/bam/${PREFIX}.fastp.json
+BAM=${OUT_DIR}/bam/${PREFIX}.hisat2.bam
+SCALLOP_OUTPUT=${OUT_DIR}/bam/${PREFIX}.scallop.gtf
+CTEA_PREFIX=${OUT_DIR}/ctea/${PREFIX}
+CTEA_OUTPUT=${CTEA_PREFIX}.ctea
+RTEA_OUTPUT=${OUT_DIR}/rtea/${PREFIX}.rtea.txt
+
+THIS_DIR=`dirname $(readlink -f $0)`
+HISAT_SCRIPT=$THIS_DIR/HISAT2_TE.sh
+CTEA_SCRIPT=$THIS_DIR/run_ctea.R
+RTEA_SCRIPT=$THIS_DIR/ctea2rtea.R
+REF_DIR=$THIS_DIR/ref/$BUILD
+TMP_DIR=$OUT_DIR/tmp
+
+mkdir -p $OUT_DIR
+mkdir -p $OUT_DIR/bam
+mkdir -p $OUT_DIR/ctea
+mkdir -p $OUT_DIR/rtea
+mkdir -p $TMP_DIR
+
+export TMP=$TMP_DIR
+
+cp $0 $OUT_DIR/$(basename ${0%.sh})_$(date +"%y%m%d%H").sh
+
+HISAT_CMD="$HISAT_SCRIPT \\\\\n
+   $R1 \\\\\n
+   $R2 \\\\\n
+   $OUT_DIR/bam/$PREFIX \\\\\n
+   $HISAT_REF/genome_snp_tran \\\\\n
+   $THREADS \\\\\n
+   $RESUME"
+
+nl="\\\\\n"
+SCALLOP_CMD="scallop $nl
+  -i $BAM $nl
+  -o $SCALLOP_OUTPUT"
+
+CTEA_CMD="Rscript $CTEA_SCRIPT $nl
+   -b $BAM $nl
+   -o $CTEA_PREFIX $nl
+   -t $THREADS"
+
+RTEA_CMD="Rscript $RTEA_SCRIPT \\\\\n
+   -c $CTEA_OUTPUT \\\\\n
+   -b $BAM \\\\\n
+   -o $RTEA_OUTPUT $nl
+   --build $BUILD $nl
+   --refdir $REF_DIR $nl
+   -t $THREADS"
+
+RunCMD() {
+  OUTFILE=$1
+  if [[ $RESUME = resume && -s $OUTFILE && -e ${OUTFILE}.done ]]
+  then
+    echo
+    echo $OUTFILE exists. Skip.
+    return 0
+  fi
+  shift
+    rm -f ${OUTFILE}.fail ${OUTFILE}.done
+  CMD=$@
+  echo
+  echo [`date`]
+  echo -e $CMD
+  ${CMD//\\\\\\n/}
+  ES=$?
+  echo
+  echo "Exit status: $ES"
+  if [ $ES -ne 0 -o ! -s $OUTFILE ]
+  then
+    echo -e $CMD > ${OUTFILE}.fail
+    exit $ES
+  fi
+    echo -e $CMD > ${OUTFILE}.done
+  return $ES
+}
+
+LINE="---------------"
+echo
+echo ${LINE}HISAT2${LINE}
+RunCMD ${BAM}.bai $HISAT_CMD
+# echo
+# echo ${LINE}SCALLOP${LINE}
+# RunCMD $SCALLOP_OUTPUT $SCALLOP_CMD
+echo
+echo ${LINE}CTEA${LINE}
+RunCMD $CTEA_OUTPUT $CTEA_CMD
+echo
+echo ${LINE}RTEA${LINE}
+RunCMD $RTEA_OUTPUT $RTEA_CMD
+echo
+
+echo DONE.
