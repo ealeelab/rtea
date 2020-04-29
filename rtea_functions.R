@@ -830,24 +830,12 @@ duplicate.rtea <- function(rtea,
   on.exit(options(opt))
   
   ungappos <- ungapPos.rtea(rtea, overhang_cutoff = overhang_cutoff)
-  rgr <- rtea[, GRanges(chr, IRanges(ungappos, ungappos), ifelse(ori == "f", "+", "-"))]
-  ovlap <- findOverlaps(rgr, rgr, maxgap = maxgap, select = "all")
-  # ovlap %<>% .[queryHits(.) >= subjectHits(.)]
-  # mcols(ovlap)$score <- mclapply(
-  #   seq_along(ovlap), 
-  #   function(i) {
-  #     qh <- queryHits(ovlap[i])
-  #     sh <- subjectHits(ovlap[i])
-  #     if(qh ==  sh) {
-  #       alignscore_cutoff
-  #     } else {
-  #       pairwiseAlignment(rtea[qh, seq], rtea[sh, seq], type = "local") %>% score
-  #     }
-  #   },
-  #   mc.cores = threads
-  # )
-  # ovlap %<>% .[mcols(.)$score >= alignscore_cutoff]
-  ovlist <- as.list(ovlap)
+  rgr <- rtea[, GRanges(chr, IRanges(pos, pos), ifelse(ori == "f", "+", "-"))]
+  ugrgr <- rtea[, GRanges(chr, IRanges(ungappos, ungappos), ifelse(ori == "f", "+", "-"))]
+  ovlap <- findOverlaps(rgr, rgr, maxgap = 10L, select = "all")
+  ugovlap <- findOverlaps(ugrgr, ugrgr, maxgap = 10L, select = "all")
+  ovlist <- Map(union, as.list(ovlap), as.list(ugovlap))
+
   lowgrp <-mclapply(ovlist, function(x) min(unlist(ovlist[x]))) %>% unlist
   grp <- mclapply(ovlist, function(x) min(lowgrp[x])) %>% unlist
   while(!identical(lowgrp, grp)) {
