@@ -1123,37 +1123,31 @@ fusiontypeByCigar <- function(rtea, bamfile,
     ) %>% .[, .(tx_support_exon = sum(cnt)), by = tx_id]
     
     gap <- junctions(c(first(sam$pairs), second(sam$pairs), sam$nopair)) %>% unlist %>% unstrand
-    
-    # if(length(gap) == 0) {
-    #   return(data.table(tx_id = NA_character_, tx_support_cnt = NA_integer_, numgap = length(gap)))
-    # }
     gaplen <- length(unique(gap))
-    if(gaplen > 0) {
-      introns <- if(gaplen <= maxlen) {
+    introns <- if(gaplen > 0) {
+      if(gaplen <= maxlen) {
         intronsByTranscript(edb, filter = GRangesFilter(unique(gap))) %>% unlist  
       } else {
         introns <- splvec(unique(gap), 
                           function(x) intronsByTranscript(edb, filter = GRangesFilter(x)),
                           maxN = maxlen
         ) %>% unlist
-        # spl <- lapply(seq(1, gaplen, maxlen), function(x) x:min(x + maxlen - 1, gaplen))
-        # introns <- lapply(spl, function(i) intronsByTranscript(edb, filter = GRangesFilter(unique(gap)[i]))) %>%
-        #   do.call(c, .) %>% 
-        #   unlist
         introns[!duplicated(data.frame(introns))]
       }
-      ovlintron <- data.table(
+    } else {
+      GRanges()
+    }
+    ovlintron <- if(length(introns) > 0) {
+      data.table(
         tx_id = names(introns),
         cnt = countOverlaps(introns, gap, type = "equal")
       ) %>% .[, .(tx_support_intron = sum(cnt)), by = tx_id]
-      ovlcnt <- merge(ovlexon, ovlintron, all = T, by = "tx_id")
-      ovlcnt[is.na(tx_support_exon), tx_support_exon := 0]
-      ovlcnt[is.na(tx_support_intron), tx_support_intron := 0]
     } else {
-      ovlcnt <- ovlexon
-      ovlcnt[, tx_support_intron := 0]
+      data.table(tx_id = character(0), tx_support_intron = integer(0))
     }
-    
+    ovlcnt <- merge(ovlexon, ovlintron, all = T, by = "tx_id")
+    ovlcnt[is.na(tx_support_exon), tx_support_exon := 0]
+    ovlcnt[is.na(tx_support_intron), tx_support_intron := 0]
     ovlcnt %<>% .[tx_support_exon > 0 | tx_support_intron > 0]
     data.table(ovlcnt[order(-tx_support_intron, -tx_support_exon, tx_id)][1],
                numgap = length(gap))
