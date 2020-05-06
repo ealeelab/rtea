@@ -1134,7 +1134,6 @@ fusiontypeByCigar <- function(rtea, bamfile,
       } else {
         introns <- splvec(unique(gap), 
                           function(x) intronsByTranscript(edb, filter = GRangesFilter(x)),
-                          maxlen,
                           maxN = maxlen
         ) %>% unlist
         # spl <- lapply(seq(1, gaplen, maxlen), function(x) x:min(x + maxlen - 1, gaplen))
