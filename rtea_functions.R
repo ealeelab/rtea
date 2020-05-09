@@ -288,7 +288,11 @@ filterNoClip.ctea <- function(ctea, similarity_cutoff = 75, threads = getOption(
   ctea[similar <= similarity_cutoff, ]
 }
 
-clippedBam <- function(bamfile, gr, mapqFilter = 1L, yieldSize = 1e5) {
+subsampleBam <- function(bamfile, 
+                         gr, 
+                         what = c("qname", "seq", "qual", "mapq", "flag", "mpos"),
+                         mapqFilter = 1L, 
+                         yieldSize = 1e5) {
   library(GenomicAlignments)
   library(GenomicFiles)
   
@@ -302,7 +306,7 @@ clippedBam <- function(bamfile, gr, mapqFilter = 1L, yieldSize = 1e5) {
   yield <- function(x)
     readGAlignments(x,
                     param = ScanBamParam(
-                      what = c("qname", "seq", "qual", "mapq", "flag", "mpos"),
+                      what = what,
                       tag = "NM",
                       mapqFilter = mapqFilter
                     )
@@ -322,7 +326,12 @@ getClippedReads <- function(bamfile, chr, pos, ori = c("f", "r"),
   )
 
   sam <- if(subsample) {
-    clippedBam(bamfile, gr, mapqFilter = mapqFilter, yieldSize = maxReads)
+    subsampleBam(bamfile, 
+                 gr, 
+                 what = c("qname", "seq", "qual", "mapq", "flag", "mpos"),
+                 mapqFilter = mapqFilter, 
+                 yieldSize = maxReads
+    )
   } else {
     readGAlignments(
       bamfile, 
@@ -433,10 +442,9 @@ isposclipped <- function(gal, ori, pos, searchWidth = 10) {
 getClippedPairs <- function(bamfile, chr, pos, ori = c("f", "r"), 
                             noOverClip = T,
                             searchWidth = 10L,
-                            mapqFilter = 0L) {
-  # to do:  subsample = T, maxReads = 1e5
+                            mapqFilter = 0L,
+                            maxReads = 1e5) {
   require(GenomicAlignments)
-  
   gr <- GRanges(chr, 
                 IRanges(min(pos) - searchWidth, max(pos) + searchWidth), 
                 strand="*"
@@ -469,13 +477,23 @@ getClippedPairs <- function(bamfile, chr, pos, ori = c("f", "r"),
                  IRanges(min(matepos) - searchWidth, max(matepos) + searchWidth), 
                  strand="*"
   )
-  mate <- readGAlignments(bamfile,
-                          param = ScanBamParam(
-                            which = mgr, 
-                            what = c("qname", "flag"),
-                            mapqFilter = mapqFilter
-                          )
-  ) %>% subset(qname %in% mcols(sam)$qname)
+  mrecords <- countBam(
+    bamfile, 
+    param = ScanBamParam(which = mgr, 
+                         mapqFilter = mapqFilter)
+  )$records
+  mate <- if(mrecords < maxReads) {
+    readGAlignments(bamfile,
+                    param = ScanBamParam(
+                      which = mgr, 
+                      what = c("qname", "flag"),
+                      mapqFilter = mapqFilter
+                    )
+    )
+  } else {
+    subsampleBam(bamfile, mgr, what = c("qname", "flag"), mapqFilter = mapqFilter, yieldSize = maxReads)
+  }
+  mate %<>% subset(qname %in% mcols(sam)$qname)
   mate %<>% .[order(njunc(.), decreasing = T)]
   
   sam1 <- subset(sam, bamFlagTest(flag, "isFirstMateRead"))
