@@ -16,10 +16,10 @@ RUN wget -P /usr/local/bin http://opengene.org/fastp/fastp \
     && chmod a+x /usr/local/bin/fastp
 
 # hisat2
-RUN wget -P /app --content-disposition https://cloud.biohpc.swmed.edu/index.php/s/hisat2-210-Linux_x86_64/download \
-    && unzip /app/hisat2-2.1.0-Linux_x86_64.zip \
-    && rm /app/hisat2-2.1.0-Linux_x86_64.zip
-ENV PATH=/app/hisat2-2.1.0:$PATH
+RUN wget -P /app --content-disposition https://cloud.biohpc.swmed.edu/index.php/s/hisat2-220-Linux_x86_64/download \
+    && unzip /app/hisat2-2.2.0-Linux_x86_64.zip \
+    && rm /app/hisat2-2.2.0-Linux_x86_64.zip
+ENV PATH=/app/hisat2-2.2.0:$PATH
 
 # samtools
 RUN wget https://github.com/samtools/samtools/releases/download/1.9/samtools-1.9.tar.bz2 \
