@@ -7,7 +7,8 @@ RUN apt-get update && apt-get install -y \
     libxml2-dev \
     libcurl4-openssl-dev \
     libboost-dev \
-    gawk
+    gawk \
+		libssl-dev
 WORKDIR /app
 
 # fastp
@@ -76,15 +77,16 @@ RUN R -e "install.packages(c( \
             'optparse', \
             'Rcpp', \
             'BiocManager' \
-          )); \
-          BiocManager::install(c( \
-            'GenomicAlignments', \
-            'BSgenome.Hsapiens.UCSC.hg19', \
-            'BSgenome.Hsapiens.UCSC.hg38' \
           ))"
 
-RUN apt-get update && apt-get install -y libssl-dev
-RUN R -e 'BiocManager::install("GenomicFiles")'
+RUN R -e "BiocManager::install(c( \
+            'GenomicAlignments', \
+            'BSgenome.Hsapiens.UCSC.hg19', \
+            'BSgenome.Hsapiens.UCSC.hg38', \
+            'EnsDb.Hsapiens.v75', \
+            'EnsDb.Hsapiens.v86', \
+            'GenomicFiles' \
+          ))"
 
 # rtea
 COPY . rtea/
