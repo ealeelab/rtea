@@ -1,0 +1,42 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rtea-tcga-bation
+  generation: 1
+  labels:
+    app: rtea-tcga-bation
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: rtea-tcga-bation
+  template:
+    metadata:
+      labels:
+        app: rtea-tcga-bation
+    spec:
+      volumes:
+        - name: pv-storage-worker
+          persistentVolumeClaim:
+            claimName: pv-claim-tcga-worker
+        - name: pv-nfs
+          persistentVolumeClaim:
+            claimName: fileserver-claim
+            readOnly: false
+      dnsPolicy: ClusterFirst
+      containers:
+        - name: c-rtea-tcga-bastion
+          image: gcr.io/aleelab-ten/rtea-tcga-bastion:1.1
+          command: ["/bin/bash"]
+          stdin: true
+          tty: true
+          volumeMounts:
+            - mountPath: /worker
+              name: pv-storage-worker
+            - mountPath: /nfs-data
+              name: pv-nfs
+          env:
+            - name: BROKER_URL
+              value: amqp://guest:guest@rabbitmq-service:5672
+      nodeSelector:
+        cloud.google.com/gke-nodepool: default-pool

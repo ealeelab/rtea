@@ -1,0 +1,68 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: job-tcga-test
+spec:
+  completions: 2
+  parallelism: 2
+  template:
+    metadata:
+      name: job-tcga-wq-esca
+    spec:
+      volumes:
+        - name: pv-storage-worker
+          persistentVolumeClaim:
+            claimName: pv-claim-tcga-worker
+            readOnly: true
+        - name: pv-nfs
+          persistentVolumeClaim:
+            claimName: fileserver-claim
+            readOnly: false
+      dnsPolicy: ClusterFirst
+      containers:
+      - name: c-test
+        image: gcr.io/aleelab-ten/rtea-tcga:1.2
+        resources:
+          limits:
+            memory: "30Gi"
+            cpu: "5"
+          requests:
+            memory: "25Gi"
+            cpu: "4"
+        stdin: true
+        tty: true
+        volumeMounts:
+          - mountPath: /nfs-data
+            name: pv-nfs
+          - mountPath: /worker
+            name: pv-storage-worker
+            readOnly: true
+        env:
+        - name: BROKER_URL
+          value: amqp://guest:guest@rabbitmq-service:5672
+        - name: QUEUE
+          value: test
+        - name: WORK_PATH
+          value: /app/rtea
+        - name: OUTPUT_PATH
+          value: /nfs-data/results/test
+        - name: SAMPLE_PATH
+          value: /nfs-data/samples
+        - name: TEMP_PATH
+          value: /app/rtea/output
+        - name: TARGET_FILE_EXT
+          value: bam
+        - name: REF_PATH
+          value: /worker/ref/hg38
+        - name: DB_USER
+          value: aleelab
+        - name: DB_PASSWORD
+          value: aleelabAprom3!
+        - name: DB_HOST
+          value: 34.73.61.94
+        - name: DB_NAME
+          value: logger_db
+      restartPolicy: OnFailure
+      nodeSelector:
+        cloud.google.com/gke-nodepool: tcga-job-pool
+

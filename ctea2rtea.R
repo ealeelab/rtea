@@ -76,8 +76,10 @@ rtea %<>%
   polyTElocation.ctea %>%
   localHardClip %>%
   cntFilter.ctea
+rtea %<>% fusiontypeByCigar(bamfile, threads = threads)
 if(!is.null(opt$scallop)) {
   rtea %<>% matchScallop.ctea(scallopfile)
+  rtea %<>% annotateScallop.ctea(scallopfile)
 }
 
 writeLines(paste("Writing result to", outfile))

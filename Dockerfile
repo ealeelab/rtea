@@ -89,3 +89,5 @@ RUN R -e 'BiocManager::install("GenomicFiles")'
 # rtea
 COPY . rtea/
 ENV PATH=/app/rtea:$PATH
+
+
