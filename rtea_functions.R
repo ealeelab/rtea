@@ -1176,7 +1176,7 @@ nearbypair <- function(rtea,
   rgrr <- rtea[ori == "r", GRanges(chr, IRanges(ungappos, ungappos))]
   rgrf <- rtea[ori == "f", GRanges(chr, IRanges(ungappos, ungappos))]
   ovlap <- findOverlaps(rgrr, rgrf, maxgap = maxgap, select = "all")
-  ovlap %<>% .[rtea[ori == "r"][queryHits(.), ungappos] < rtea[ori == "f"][subjectHits(.), ungappos]] + maxTSD
+  ovlap %<>% .[rtea[ori == "r"][queryHits(.), ungappos] < rtea[ori == "f"][subjectHits(.), ungappos] + maxTSD]
   pairr <- rtea[ori == "r"][queryHits(ovlap)]
   pairf <- rtea[ori == "f"][subjectHits(ovlap)]
   meta <- data.table(

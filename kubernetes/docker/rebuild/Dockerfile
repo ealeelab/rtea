@@ -3,8 +3,7 @@ MAINTAINER Boram Lee
 
 WORKDIR /app
 
-COPY boramFiles/ rtea/
-COPY worker.py rtea/
-COPY DBLogger.py rtea/
+COPY ctea2rtea.R rtea/
+COPY rtea_functions.R rtea/
 
-CMD /usr/bin/amqp-consume --url=$BROKER_URL -q $QUEUE -c 1 /worker/worker.py
+CMD /usr/bin/amqp-consume --url=$BROKER_URL -q $QUEUE -c 1 /app/rtea/worker.py
