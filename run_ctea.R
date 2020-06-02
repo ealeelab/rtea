@@ -1,4 +1,4 @@
-#!/usr/bin/Rscript
+#!/bin/env Rscript
 
 options(error = function(){
   sink(stderr())
