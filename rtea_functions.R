@@ -83,7 +83,7 @@ readctea <- function(cteafile, count_cutoff = 3, confidence_cutoff = 2) {
   ctea[family %in% c("L1HS", "LINE1"), class := "L1"]
   ctea[toupper(substr(family, 1, 3)) == "ALU", class := "Alu"]
   ctea[substr(family, 1, 3) == "SVA", class := "SVA"]
-  ctea[substr(family, 1, 4) == "HERV", class := "HERV"]
+  ctea[substr(family, 1, 3) %in% c("HER", "MER", "LTR", "MLT"), class := "HERV"]
 
   ctea[, .(chr, pos, ori, cnt, class, family, moreFamily, confidence, seq)]
 }
@@ -1462,12 +1462,16 @@ TEcoordinate <- function(rtea, threads = getOption("mc.cores", detectCores())) {
   idxfa[TEclass == "LINE1"] <- list(grep("L1", names(fa)))
   idxfa[TEclass == "AluY"] <- list(grep("ALU", toupper(names(fa))))
   idxfa[TEclass == "SVA"] <- list(grep("SVA", names(fa)))
-  idxfa <- idxfa[!is.na(mfa)]
-  fseq <- rtea[!is.na(mfa), DNAStringSet(seq)]
+  # idxfa[TEclass == "HERV"] <- list(grep("HERV|MER|LTR|MLT", names(fa)))
+  idxfa[TEclass %in% c("HERVK", "LTR5_Hs", "LTR5A", "LTR5B", "LTR5")] %<>% lapply(c, "HERVK-full")
+  idxfa[TEclass %in% c("HERVH", "LTR7", "LTR7Y", "LTR7B", "LTR7C")] %<>% lapply(c, "HERVH-full")
+  isna <- is.na(sapply(idxfa, `[`, 1))
+  idxfa <- idxfa[!isna]
+  fseq <- rtea[!isna, DNAStringSet(seq)]
   rseq <- reverseComplement(fseq)
-  ori <- rtea[!is.na(mfa), ori]
+  ori <- rtea[!isna, ori]
   msg("Mapping + strand to TE references...")
-  n <- sum(!is.na(mfa))
+  n <- sum(!isna)
   falign <- mclapply(
     seq_len(n), 
     mc.cores = threads, 
@@ -1524,7 +1528,7 @@ TEcoordinate <- function(rtea, threads = getOption("mc.cores", detectCores())) {
   TEbreak <- mapply(function(x, i) paste(x[i], collapse = ","), TEbreak, bestmatch)
   TEfamily <- mapply(function(i, j) paste(names(fa[i[j]]), collapse = ","), idxfa, bestmatch)
   idx <- rep(NA_integer_, nrow(rtea))
-  idx[!is.na(mfa)] <- seq_len(n)
+  idx[!isna] <- seq_len(n)
   data.table(rtea, data.table(TEfamily, TEscore, TEside, TEbreak)[idx, ])
 }
 
