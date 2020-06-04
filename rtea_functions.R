@@ -1463,8 +1463,8 @@ TEcoordinate <- function(rtea, threads = getOption("mc.cores", detectCores())) {
   idxfa[TEclass == "AluY"] <- list(grep("ALU", toupper(names(fa))))
   idxfa[TEclass == "SVA"] <- list(grep("SVA", names(fa)))
   # idxfa[TEclass == "HERV"] <- list(grep("HERV|MER|LTR|MLT", names(fa)))
-  idxfa[TEclass %in% c("HERVK", "LTR5_Hs", "LTR5A", "LTR5B", "LTR5")] %<>% lapply(c, "HERVK-full")
-  idxfa[TEclass %in% c("HERVH", "LTR7", "LTR7Y", "LTR7B", "LTR7C")] %<>% lapply(c, "HERVH-full")
+  idxfa[TEclass %in% c("HERVK", "LTR5_Hs", "LTR5A", "LTR5B", "LTR5")] %<>% lapply(c, match("HERVK-full", names(fa)))
+  idxfa[TEclass %in% c("HERVH", "LTR7", "LTR7Y", "LTR7B", "LTR7C")] %<>% lapply(c, match("HERVH-full", names(fa)))
   isna <- is.na(sapply(idxfa, `[`, 1))
   idxfa <- idxfa[!isna]
   fseq <- rtea[!isna, DNAStringSet(seq)]
