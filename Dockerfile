@@ -84,8 +84,7 @@ RUN R -e "BiocManager::install(c( \
             'BSgenome.Hsapiens.UCSC.hg19', \
             'BSgenome.Hsapiens.UCSC.hg38', \
             'EnsDb.Hsapiens.v75', \
-            'EnsDb.Hsapiens.v86', \
-            'GenomicFiles' \
+            'EnsDb.Hsapiens.v86' \
           ))"
 
 # rtea
