@@ -294,34 +294,56 @@ filterNoClip.ctea <- function(ctea, similarity_cutoff = 75, threads = getOption(
 
 subsampleBam <- function(bamfile, 
                          gr, 
+                         numReads = countBam(
+                           bamfile, 
+                           param = ScanBamParam(which = gr, mapqFilter = mapqFilter)
+                         )$records,
                          what = c("qname", "seq", "qual", "mapq", "flag", "mpos"),
+                         tag = "NM",  # character(0)
                          mapqFilter = 1L, 
-                         yieldSize = 1e5) {
-  library(GenomicAlignments)
-  library(GenomicFiles)
-  
-  cbfile <- filterBam(bamfile, tempfile(),
-                      param = ScanBamParam(which = gr, mapqFilter = mapqFilter),
-                      indexDestination = F
-  )
+                         maxReads = 1e5) {
+  cbfile <- tempfile()
   on.exit(unlink(cbfile))
-  
-  bf <- BamFile(cbfile, yieldSize = yieldSize)
-  yield <- function(x)
-    readGAlignments(x,
-                    param = ScanBamParam(
-                      what = what,
-                      tag = "NM",
-                      mapqFilter = mapqFilter
-                    )
+  if(numReads <= maxReads) {
+    sam <- readGAlignments(
+      bamfile, 
+      param = ScanBamParam(
+        which = gr, 
+        what = what,
+        tag = tag,
+        mapqFilter = mapqFilter
+      )
     )
-  reduceByYield(bf, yield, identity, REDUCEsampler(yieldSize, F))
+    return(sam)
+  }
+  region <- paste0(seqnames(gr), ":", start(gr), "-", end(gr))
+  awk <- "'BEGIN {srand()} /^@/ {print} !/^@/ {if(rand() * n-- < p) {p--; print; if(p==0) exit}}'"
+  cmd <- paste("samtools view -h -q", mapqFilter, bamfile, region, "|",
+               "awk", awk, sprintf("n=%d p=%d", numReads, maxReads), "|",
+               "samtools view -bh -", ">",
+               cbfile
+               )
+  # cmd <- paste("samtools view -h -q", mapqFilter, bamfile, region, "|",
+  #              "Rscript --vanilla", subsample_script, numreads, maxReads, "|",
+  #              "samtools view -b -", ">",
+  #              cbfile)
+  # writeLines(cmd)
+  system(cmd)
+  
+  readGAlignments(cbfile, 
+                  param = ScanBamParam(
+                    what = what,
+                    tag = tag,
+                    mapqFilter = mapqFilter
+                  ))
 }
+
 
 getClippedReads <- function(bamfile, chr, pos, ori = c("f", "r"), 
                             searchWidth = 10L,
                             mapqFilter = 1L,
                             subsample = F,
+                            numReads = NULL,
                             maxReads = 1e5) {
   require(GenomicAlignments)
   gr <- GRanges(chr, 
@@ -332,9 +354,11 @@ getClippedReads <- function(bamfile, chr, pos, ori = c("f", "r"),
   sam <- if(subsample) {
     subsampleBam(bamfile, 
                  gr, 
+                 numReads = numReads,
                  what = c("qname", "seq", "qual", "mapq", "flag", "mpos"),
+                 tag = "NM",
                  mapqFilter = mapqFilter, 
-                 yieldSize = maxReads
+                 maxReads = maxReads
     )
   } else {
     readGAlignments(
@@ -495,7 +519,13 @@ getClippedPairs <- function(bamfile, chr, pos, ori = c("f", "r"),
                     )
     )
   } else {
-    subsampleBam(bamfile, mgr, what = c("qname", "flag"), mapqFilter = mapqFilter, yieldSize = maxReads)
+    subsampleBam(bamfile, mgr, 
+                 numReads = mrecords, 
+                 what = c("qname", "flag"), 
+                 tag = character(0),
+                 mapqFilter = mapqFilter, 
+                 maxReads = maxReads
+    )
   }
   mate %<>% subset(qname %in% mcols(sam)$qname)
   mate %<>% .[order(njunc(.), decreasing = T)]
@@ -712,6 +742,7 @@ countClippedReads.ctea <- function(ctea,
                            subsample = records > maxReads,
                            searchWidth = searchWidth, 
                            mapqFilter = mapqFilter, 
+                           numReads = records,
                            maxReads = maxReads
     )
     
