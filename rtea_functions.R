@@ -328,8 +328,14 @@ subsampleBam <- function(bamfile,
   #              "samtools view -b -", ">",
   #              cbfile)
   # writeLines(cmd)
-  system(cmd)
-  
+  exitcode <- system(cmd)
+  if(exitcode != 0) {
+    stop("Error while subsampling bam file: ", region)
+  }
+  subsamplecnt <- countBam(cbfile)$records
+  if(subsamplecnt != maxReads) {
+    stop("Error: subsampling incomplete in ", region)
+  }
   readGAlignments(cbfile, 
                   param = ScanBamParam(
                     what = what,
