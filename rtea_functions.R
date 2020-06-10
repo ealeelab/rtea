@@ -357,7 +357,7 @@ getClippedReads <- function(bamfile, chr, pos, ori = c("f", "r"),
                 strand="*"
   )
 
-  sam <- if(subsample) {
+  sam <- if(subsample && numReads > maxReads) {
     subsampleBam(bamfile, 
                  gr, 
                  numReads = numReads,
@@ -476,20 +476,39 @@ isposclipped <- function(gal, ori, pos, searchWidth = 10) {
 getClippedPairs <- function(bamfile, chr, pos, ori = c("f", "r"), 
                             noOverClip = T,
                             searchWidth = 10L,
-                            mapqFilter = 0L,
-                            maxReads = 1e5) {
+                            mapqFilter = 1L,
+                            subsample = F,
+                            numReads = NULL,
+                            maxReads = 1e6) {
   require(GenomicAlignments)
   gr <- GRanges(chr, 
                 IRanges(min(pos) - searchWidth, max(pos) + searchWidth), 
                 strand="*"
   )
-  sam <- readGAlignments(bamfile,
-                         param = ScanBamParam(
-                           which = gr, 
-                           what = c("qname", "flag", "mpos"),
-                           mapqFilter = mapqFilter
-                         )
-  )
+  
+  if(subsample && missing(numReads)) {
+    numReads <- countBam(bamfile, 
+                         param = ScanBamParam(which = gr, mapqFilter = mapqFilter)
+    )$records
+  }
+  sam <- if(subsample && numReads > maxReads) {
+    subsampleBam(bamfile, gr,
+                 what = c("qname", "flag", "mpos"),
+                 tag = character(0),
+                 mapqFilter = mapqFilter,
+                 numReads = numReads,
+                 maxReads = maxReads
+    )
+  } else {
+    readGAlignments(bamfile,
+                    param = ScanBamParam(
+                      which = gr, 
+                      what = c("qname", "flag", "mpos"),
+                      mapqFilter = mapqFilter
+                    )
+    )
+  }
+  
   sam %<>% .[isposclipped(sam, ori, pos, searchWidth = searchWidth)]
   matepos <- mcols(sam)$mpos[bamFlagTest(mcols(sam)$flag, "isProperPair")]
   if(noOverClip) {
@@ -516,21 +535,21 @@ getClippedPairs <- function(bamfile, chr, pos, ori = c("f", "r"),
     param = ScanBamParam(which = mgr, 
                          mapqFilter = mapqFilter)
   )$records
-  mate <- if(mrecords < maxReads) {
-    readGAlignments(bamfile,
-                    param = ScanBamParam(
-                      which = mgr, 
-                      what = c("qname", "flag"),
-                      mapqFilter = mapqFilter
-                    )
-    )
-  } else {
+  mate <- if(subsample && mrecords > maxReads) {
     subsampleBam(bamfile, mgr, 
                  numReads = mrecords, 
                  what = c("qname", "flag"), 
                  tag = character(0),
                  mapqFilter = mapqFilter, 
                  maxReads = maxReads
+    )
+  } else {
+    readGAlignments(bamfile,
+                    param = ScanBamParam(
+                      which = mgr, 
+                      what = c("qname", "flag"),
+                      mapqFilter = mapqFilter
+                    )
     )
   }
   mate %<>% subset(qname %in% mcols(sam)$qname)
@@ -1129,7 +1148,7 @@ fusiontypeByCigar <- function(rtea, bamfile,
     }
     
     # sam <- getClippedReads(bamfile, chr, pos, ori)
-    sam <- getClippedPairs(bamfile, chr, pos, ori)
+    sam <- getClippedPairs(bamfile, chr, pos, ori, subsample = T)
     maxlen <- 900
     
     gr <- granges(c(first(sam$pairs), second(sam$pairs), sam$nopair)) %>% unstrand
