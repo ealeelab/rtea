@@ -6,10 +6,9 @@ RNA-TE fusion finder
 1. [fastp](https://github.com/OpenGene/fastp)
 2. [hisat2](https://ccb.jhu.edu/software/hisat2/index.shtml)
 3. [samtools](http://www.htslib.org/)
-4. [scallop](https://github.com/Kingsford-Group/scallop)
-5. [bamtools](https://github.com/pezmaster31/bamtools)
-6. [bwa](http://bio-bwa.sourceforge.net/)
-7. [awk](https://www.gnu.org/software/gawk/)
+4. [bamtools](https://github.com/pezmaster31/bamtools)
+5. [bwa](http://bio-bwa.sourceforge.net/)
+6. [awk](https://www.gnu.org/software/gawk/)
 7. R packages
    * magrittr
    * data.table
@@ -17,9 +16,10 @@ RNA-TE fusion finder
    * optparse
    * Rcpp
    * GenomicAlignments
-   * GenomicFiles
    * BSgenome.Hsapiens.UCSC.hg19
    * BSgenome.Hsapiens.UCSC.hg38
+	 * EnsDb.Hsapiens.v75
+	 * EnsDb.Hsapiens.v86
 
 ## Usage
 ```bash

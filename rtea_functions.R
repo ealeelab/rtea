@@ -723,8 +723,7 @@ countClippedReads.ctea <- function(ctea,
   library(BiocParallel)
   require(GenomicAlignments)
   require(data.table)
-  require(GenomicFiles)
-  
+
   NAresult <- list(
     depth = NA_real_,
     matchCnt = NA_integer_,
@@ -1219,6 +1218,7 @@ fusiontypeByCigar <- function(rtea, bamfile,
   
   ft <- fusiontype(rtea, trpt$tx_id, edbpkg = edbpkg)
   stopifnot(identical(trpt$tx_id, ft$tx_id))
+  names(ft) %<>% paste0("fusion_", .)
   data.table(rtea, ft, trpt[, .(tx_support_exon, tx_support_intron, numgap)])
 }
 
