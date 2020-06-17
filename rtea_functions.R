@@ -582,7 +582,7 @@ getClippedPairs <- function(bamfile, chr, pos, ori = c("f", "r"),
       mgr[end(mgr) <= pos]
     }
   }
-  mgr %<>% reduce
+  mgr %<>% resize(100) %>% intersect(range(mgr))
   
   if(length(mgr) == 0) {
     return(list(
@@ -590,7 +590,6 @@ getClippedPairs <- function(bamfile, chr, pos, ori = c("f", "r"),
       nopair = sam
     ))
   }
-  mgr <- GRanges(seqnames(mgr), IRanges(min(start(mgr)), max(end(mgr))), "*")
  
   mrecords <- countBam(
     bamfile, 
@@ -873,14 +872,7 @@ countClippedReads.ctea <- function(ctea,
     isTEread <- TEalignScore(meta$seq, family)
     r1strand <- ifelse(bamFlagTest(meta$flag, "isFirstMateRead"), strand(sam), invertStrand(strand(sam)))
     
-    mcols(sam)$seq <- NULL
-    mcols(sam)$sseq <- NULL
-    sampair <- getClippedPairs(bamfile, chr, pos, ori, sam[isMatch]) %>% {
-      c(first(.$pairs), second(.$pairs), .$nopair)
-    }
-    fusionTx <- fusionTxMatch(sampair, edbpkg, strandedness)
-    
-    list(
+    cnt <- list(
       depth = records / (2 * searchWidth + 1),
       matchCnt = sum(isMatch),
       trueCnt = sum(isMatch & !shortClip & !isPolyA), 
@@ -900,12 +892,33 @@ countClippedReads.ctea <- function(ctea,
       secondary = mean(isSecondary[isMatch]),
       editDistance = mean(meta$NM[isMatch]),
       nonspecificTE = mean(isTEread[isMatch]),
-      fusion_tx_id = fusionTx$tx_id,
-      tx_support_exon = fusionTx$tx_support_exon,
-      tx_support_intron = fusionTx$tx_support_intron, 
-      numgap = fusionTx$numgap,
+      # fusion_tx_id = fusionTx$tx_id,
+      # tx_support_exon = fusionTx$tx_support_exon,
+      # tx_support_intron = fusionTx$tx_support_intron,
+      # numgap = fusionTx$numgap,
       r1pstrand = mean(r1strand[isMatch] == "+")
     )
+    
+    if(sum(isMatch) >= 3) {
+
+      mcols(sam)$seq <- NULL
+      mcols(sam)$sseq <- NULL
+      sampair <- getClippedPairs(bamfile, chr, pos, ori, sam[isMatch]) %>% {
+        c(first(.$pairs), second(.$pairs), .$nopair)
+      }
+      fusionTx <- fusionTxMatch(sampair, edbpkg, strandedness)
+    } else {
+      # fusionTx <- fusionTxMatch(sam)
+      fusionTx <- data.table(tx_id = NA_character_,
+                             tx_support_exon = NA_integer_,
+                             tx_support_intron = NA_integer_,
+                             numgap = NA_integer_
+      )
+    }
+    setnames(fusionTx, "tx_id", "fusion_tx_id")
+    
+    c(cnt, as.list(fusionTx))
+    
   }
   lcnt <- bptry(
     bpmapply(
@@ -1227,7 +1240,7 @@ fusiontype <- function(rtea, tx_id = rtea$fusion_tx_id,
      fusion_type := fifelse(strand == "+", "read-through", "alternative TSS")]
   dt <- dt[, c("fusion_type", "tx_id", columns), with = F]
   names(dt)[-1] %<>% paste0("fusion_", .)
-  if(exists("fusion_tx_id", rtea) && all.equal(rtea$fusion_tx_id, dt$fusion_tx_id)) {
+  if(exists("fusion_tx_id", rtea) && identical(rtea$fusion_tx_id, dt$fusion_tx_id)) {
     dt$fusion_tx_id <- NULL
   }
   data.table(rtea, dt)
