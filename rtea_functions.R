@@ -292,6 +292,55 @@ filterNoClip.ctea <- function(ctea, similarity_cutoff = 75, threads = getOption(
   ctea[similar <= similarity_cutoff, ]
 }
 
+checkStrandedness <- function(bamfile, edbpkg = edbPKG) {
+  msg("Checking strandedness of bamfile...")
+  
+  library(Rsamtools)
+  require(edbpkg, character.only = T)
+  edb <- get(edbpkg)
+  
+  housekeeping <- c("RRN18S", "GAPDH", "PGK1", "PPIA", "RPLP0", 
+                    "ARBP", "B2M", "YWHAZ", "SDHA", "TFRC", 
+                    "GUSB", "HMBS", "HPRT1", "TBP"
+  )
+  
+  he <- exons(edb, filter = GeneNameFilter(housekeeping), column = "tx_biotype")
+  he %<>% subset(tx_biotype %in% "protein_coding")
+  
+  nohe <- exonsByOverlaps(edb, he, columns = c("gene_name")) %>%
+    subset(!gene_name %in% housekeeping)
+  ovlgene <- subsetByOverlaps(he, nohe, ignore.strand = T)$gene_name %>% unique
+  he %<>% subset(!gene_name %in% ovlgene)
+  
+  bamheader <- scanBamHeader(bamfile)
+  seqlevels(he, pruning.mode = "coarse") <- intersect(seqlevels(he), names(bamheader[[1]]$targets))
+  
+  readcnt <- countBam(bamfile, param = ScanBamParam(which = he)) %>% data.table
+  hemc <- readcnt[, records %between% quantile(records, c(.45, .55))] %>% he[.]
+  sam <- scanBam(bamfile,
+                 param = ScanBamParam(which = hemc,
+                                      what = c("flag", "strand"),
+                                      simpleCigar = T,
+                                      mapqFilter = 30L
+                 )
+  )
+  isfirst <- sapply(sam, `[[`, "flag") %>% unlist %>% bamFlagTest("isFirstMateRead")
+  rstrand <- sapply(sam, `[[`, "strand") %>% unlist
+  gstrand <- rep(strand(hemc), sapply(sam, function(x) length(x[[1]]))) %>% as.factor
+  stat <- fisher.test(table(isfirst, rstrand == gstrand))
+  stranded <- stat$p.value < .05 & abs(log2(stat$estimate)) > 2
+  if(!stranded) {
+    "non-stranded"
+  } else {
+    if(mean(isfirst[rstrand == gstrand]) > 0.5) {
+      "first-sense"
+    } else {
+      "first-antisense"
+    }
+  }
+  
+}
+
 subsampleBam <- function(bamfile, 
                          gr, 
                          numReads = countBam(
@@ -302,6 +351,8 @@ subsampleBam <- function(bamfile,
                          tag = "NM",  # character(0)
                          mapqFilter = 1L, 
                          maxReads = 1e5) {
+  
+  gr %<>% reduce
   cbfile <- tempfile()
   on.exit(unlink(cbfile))
   if(numReads <= maxReads) {
@@ -316,7 +367,7 @@ subsampleBam <- function(bamfile,
     )
     return(sam)
   }
-  region <- paste0(seqnames(gr), ":", start(gr), "-", end(gr))
+  region <- paste0(seqnames(gr), ":", start(gr), "-", end(gr), collapse = " ")
   awk <- "'BEGIN {srand()} /^@/ {print} !/^@/ {if(rand() * n-- < p) {p--; print; if(p==0) exit}}'"
   cmd <- paste("samtools view -h -q", mapqFilter, bamfile, region, "|",
                "awk", awk, sprintf("n=%d p=%d", numReads, maxReads), "|",
@@ -400,7 +451,7 @@ getClippedReads <- function(bamfile, chr, pos, ori = c("f", "r"),
     sam <- sam[order(secondary, split, othersplit)]
     isFirst <- bamFlagTest(mcols(sam)$flag, "isFirstMateRead")
     sam <- sam[!duplicated(paste(mcols(sam)$qname, isFirst)) & grepl("^\\d+S", cigar(sam))]
-    mcols(sam)$qname  <- NULL
+    # mcols(sam)$qname  <- NULL
     
     mcols(sam)$slen <- sub("S.*", "", cigar(sam)) %>% as.integer
     mcols(sam)$shift <- start(sam) - pos - 1
@@ -430,7 +481,7 @@ getClippedReads <- function(bamfile, chr, pos, ori = c("f", "r"),
     sam <- sam[order(secondary, split, othersplit)]
     isFirst <- bamFlagTest(mcols(sam)$flag, "isFirstMateRead")
     sam <- sam[!duplicated(paste(mcols(sam)$qname, isFirst)) & endsWith(cigar(sam), "S")]
-    mcols(sam)$qname  <- NULL
+    # mcols(sam)$qname  <- NULL
 
     mcols(sam)$slen <- 
       explodeCigarOpLengths(cigar(sam), ops="S") %>%
@@ -474,6 +525,9 @@ isposclipped <- function(gal, ori, pos, searchWidth = 10) {
 }
 
 getClippedPairs <- function(bamfile, chr, pos, ori = c("f", "r"), 
+                            firstsam = NULL,
+                            what = c("qname", "flag"),
+                            tag = character(0),
                             noOverClip = T,
                             searchWidth = 10L,
                             mapqFilter = 1L,
@@ -481,55 +535,63 @@ getClippedPairs <- function(bamfile, chr, pos, ori = c("f", "r"),
                             numReads = NULL,
                             maxReads = 1e6) {
   require(GenomicAlignments)
-  gr <- GRanges(chr, 
-                IRanges(min(pos) - searchWidth, max(pos) + searchWidth), 
-                strand="*"
-  )
   
-  if(subsample && missing(numReads)) {
-    numReads <- countBam(bamfile, 
-                         param = ScanBamParam(which = gr, mapqFilter = mapqFilter)
-    )$records
-  }
-  sam <- if(subsample && numReads > maxReads) {
-    subsampleBam(bamfile, gr,
-                 what = c("qname", "flag", "mpos"),
-                 tag = character(0),
-                 mapqFilter = mapqFilter,
-                 numReads = numReads,
-                 maxReads = maxReads
+  if(missing(firstsam)) {
+    gr <- GRanges(chr, 
+                  IRanges(min(pos) - searchWidth, max(pos) + searchWidth), 
+                  strand="*"
     )
-  } else {
-    readGAlignments(bamfile,
-                    param = ScanBamParam(
-                      which = gr, 
-                      what = c("qname", "flag", "mpos"),
-                      mapqFilter = mapqFilter
-                    )
-    )
-  }
-  
-  sam %<>% .[isposclipped(sam, ori, pos, searchWidth = searchWidth)]
-  matepos <- mcols(sam)$mpos[bamFlagTest(mcols(sam)$flag, "isProperPair")]
-  if(noOverClip) {
-    matepos <- if(ori == "f") {
-      matepos[matepos >= pos]
+    
+    if(subsample && missing(numReads)) {
+      numReads <- countBam(bamfile, 
+                           param = ScanBamParam(which = gr, mapqFilter = mapqFilter)
+      )$records
+    }
+    sam <- if(subsample && numReads > maxReads) {
+      subsampleBam(bamfile, gr,
+                   what = c(what, "mpos"),
+                   tag = tag,
+                   mapqFilter = mapqFilter,
+                   numReads = numReads,
+                   maxReads = maxReads
+      )
     } else {
-      matepos[matepos <= pos]
+      readGAlignments(bamfile,
+                      param = ScanBamParam(
+                        which = gr, 
+                        what = c(what, "mpos"),
+                        tag = tag,
+                        mapqFilter = mapqFilter
+                      )
+      )
+    }
+    
+    sam %<>% .[isposclipped(sam, ori, pos, searchWidth = searchWidth)]
+  } else {
+    sam <- firstsam
+  }
+  
+  sam %<>% .[order(njunc(.), decreasing = T)]
+  mgr <- with(subset(sam, bamFlagTest(flag, "isProperPair")),
+       GRanges(seqnames, IRanges(mpos, mpos), invertStrand(strand))
+  )
+  if(noOverClip) {
+    mgr <- if(ori == "f") {
+      mgr[start(mgr) >= pos]
+    } else {
+      mgr[end(mgr) <= pos]
     }
   }
-  sam %<>% .[order(njunc(.), decreasing = T)]
-  sam %<>% .[!duplicated(mcols(.)$qname)]
-  if(length(matepos) == 0) {
+  mgr %<>% reduce
+  
+  if(length(mgr) == 0) {
     return(list(
       pairs = GAlignmentPairs(sam[0], sam[0]),
       nopair = sam
     ))
   }
-  mgr <- GRanges(chr, 
-                 IRanges(min(matepos) - searchWidth, max(matepos) + searchWidth), 
-                 strand="*"
-  )
+  mgr <- GRanges(seqnames(mgr), IRanges(min(start(mgr)), max(end(mgr))), "*")
+ 
   mrecords <- countBam(
     bamfile, 
     param = ScanBamParam(which = mgr, 
@@ -538,8 +600,8 @@ getClippedPairs <- function(bamfile, chr, pos, ori = c("f", "r"),
   mate <- if(subsample && mrecords > maxReads) {
     subsampleBam(bamfile, mgr, 
                  numReads = mrecords, 
-                 what = c("qname", "flag"), 
-                 tag = character(0),
+                 what = what, 
+                 tag = tag,
                  mapqFilter = mapqFilter, 
                  maxReads = maxReads
     )
@@ -547,7 +609,8 @@ getClippedPairs <- function(bamfile, chr, pos, ori = c("f", "r"),
     readGAlignments(bamfile,
                     param = ScanBamParam(
                       which = mgr, 
-                      what = c("qname", "flag"),
+                      what = what,
+                      tag = tag,
                       mapqFilter = mapqFilter
                     )
     )
@@ -555,6 +618,7 @@ getClippedPairs <- function(bamfile, chr, pos, ori = c("f", "r"),
   mate %<>% subset(qname %in% mcols(sam)$qname)
   mate %<>% .[order(njunc(.), decreasing = T)]
   
+  sam %<>% .[!duplicated(mcols(.)$qname)]
   sam1 <- subset(sam, bamFlagTest(flag, "isFirstMateRead"))
   sam2 <- subset(sam, !bamFlagTest(flag, "isFirstMateRead"))
   mate1 <- subset(mate, bamFlagTest(flag, "isFirstMateRead"))
@@ -713,6 +777,8 @@ cntFilter.ctea <- function(ctea,
 
 countClippedReads.ctea <- function(ctea, 
                                    bamfile, 
+                                   edbpkg = edbPKG,
+                                   strandedness = c("non-stranded", "first-sense", "first-antisense"),
                                    searchWidth = 10L, 
                                    mapqFilter = 1L,
                                    shift_range = 0,
@@ -743,13 +809,26 @@ countClippedReads.ctea <- function(ctea,
     gap = NA_integer_,
     secondary = NA_real_,
     editDistance = NA_real_,
-    nonspecificTE = NA_real_
+    nonspecificTE = NA_real_,
+    fusion_tx_id = NA_character_,
+    tx_support_exon = NA_integer_,
+    tx_support_intron = NA_integer_,
+    numgap = NA_integer_,
+    r1pstrand = NA_real_
   )
   
   n <- nrow(ctea)
   if(n == 0) {
     return( lapply(NAresult, `[`, 0) )
   }
+  
+  if(missing(strandedness)) {
+    strandedness <- checkStrandedness(bamfile, edbpkg)
+  }
+  if(paste0("package:", edbpkg) %in% search()) {
+    detach(paste0("package:", edbpkg), unload = T, character.only = T)
+  }
+  
   msg("Counting clipped reads...")
   countThis <- function(i, bamfile, chr, pos, ori, seq, family) {
     cat(sprintf("\r%0.2f%%              ", i/n*100))
@@ -792,6 +871,15 @@ countClippedReads.ctea <- function(ctea,
     isOverClip <- isProperPair & !mateOverlap & isMateSide & isMatch & !isPolyA
     possibleDup <- duplicated(paste(nchar(meta$sseq), meta$mpos)) | duplicated(meta$sseq)
     isTEread <- TEalignScore(meta$seq, family)
+    r1strand <- ifelse(bamFlagTest(meta$flag, "isFirstMateRead"), strand(sam), invertStrand(strand(sam)))
+    
+    mcols(sam)$seq <- NULL
+    mcols(sam)$sseq <- NULL
+    sampair <- getClippedPairs(bamfile, chr, pos, ori, sam[isMatch]) %>% {
+      c(first(.$pairs), second(.$pairs), .$nopair)
+    }
+    fusionTx <- fusionTxMatch(sampair, edbpkg, strandedness)
+    
     list(
       depth = records / (2 * searchWidth + 1),
       matchCnt = sum(isMatch),
@@ -811,7 +899,12 @@ countClippedReads.ctea <- function(ctea,
       gap = suppressWarnings(median(meta$gap[isMatch & !shortClip])),
       secondary = mean(isSecondary[isMatch]),
       editDistance = mean(meta$NM[isMatch]),
-      nonspecificTE = mean(isTEread[isMatch])
+      nonspecificTE = mean(isTEread[isMatch]),
+      fusion_tx_id = fusionTx$tx_id,
+      tx_support_exon = fusionTx$tx_support_exon,
+      tx_support_intron = fusionTx$tx_support_intron, 
+      numgap = fusionTx$numgap,
+      r1pstrand = mean(r1strand[isMatch] == "+")
     )
   }
   lcnt <- bptry(
@@ -849,6 +942,17 @@ countClippedReads.ctea <- function(ctea,
     }
   )
   stopifnot(ctea[, .N] == cntdt[, .N])
+  
+  cntdt[, strand := "*"]
+  if(strandedness == "first-sense") {
+    cntdt[r1pstrand > .5, strand := "+"]
+    cntdt[r1pstrand < .5, strand := "-"]
+  } 
+  if(strandedness == "first-antisense") {
+    cntdt[r1pstrand > .5, strand := "-"]
+    cntdt[r1pstrand < .5, strand := "+"]
+  }
+  
   data.table(ctea, cntdt)
 }
 
@@ -1084,18 +1188,19 @@ annotateScallop.ctea <- function(rtea, scallopfile, edbpkg = edbPKG, threads = g
       }
       whichTranscript(subset(scallop, transcript_id %in% scallop_id))
   }) %>% unlist
-  ft <- fusiontype(rtea[noNA], tx_id)
+  ft <- fusiontype(rtea[noNA], tx_id)[, !names(rtea), with = F]
   names(ft) %<>% paste0("scallop_", .)
   idx <- rep(NA, n)
   idx[noNA] <- seq_along(noNA)
   data.table(rtea, ft[idx])
 }
 
-fusiontype <- function(rtea, tx_id, 
+# hardstart, hardend column is needed on rtea. If not present run localHardClip.
+fusiontype <- function(rtea, tx_id = rtea$fusion_tx_id, 
                        edbpkg = edbPKG,
                        columns = c("tx_biotype", "gene_id", "gene_name")) {
   stopifnot(nrow(rtea) == length(tx_id))
-  
+
   require(edbpkg, character.only = T)
   edb <- get(edbpkg)
   
@@ -1120,83 +1225,118 @@ fusiontype <- function(rtea, tx_id,
      fusion_type := fifelse(strand == "+", "alternative TSS", "read-through")]
   dt[(ori == "r" & pmax(ugpos, hardend, na.rm = T) > end), 
      fusion_type := fifelse(strand == "+", "read-through", "alternative TSS")]
-  dt[, c("fusion_type", "tx_id", columns), with = F]
+  dt <- dt[, c("fusion_type", "tx_id", columns), with = F]
+  names(dt)[-1] %<>% paste0("fusion_", .)
+  if(exists("fusion_tx_id", rtea) && all.equal(rtea$fusion_tx_id, dt$fusion_tx_id)) {
+    dt$fusion_tx_id <- NULL
+  }
+  data.table(rtea, dt)
+}
+
+fusionTxMatch <- function(sam, edbpkg, strandedness = c("non-stranded", "first-sense", "first-antisense")) {
+  if(length(sam) == 0) {
+    return(data.table(tx_id = NA_character_,
+                      tx_support_exon = NA_integer_,
+                      tx_support_intron = NA_integer_,
+                      numgap = NA_integer_)
+    )
+  }
+  
+  library(edbpkg, character.only = T)
+  edb <- get(edbpkg)
+  
+  splvec <- function(x, FUN, maxN, AGGREGATE = c, ...) {
+    spl <- lapply(seq(1, length(x), maxN), function(i1) i1:min(i1 + maxN - 1, length(x)))
+    lst <- lapply(spl, function(i) FUN(x[i], ...))
+    do.call(AGGREGATE, lst)
+  }
+  maxlen <- 900
+  
+  if(missing(strandedness)) {
+    strandedness <- "non-stranded"
+  }
+  rnastrand <- function(gr, flag, stranded = strandedness) {
+    if(stranded == "non-stranded") {
+      unstrand(gr)
+    } else if(stranded == "first-antisense") {
+      strand(gr)[bamFlagTest(flag, "isFirstMateRead")] %<>% invertStrand
+    } else if(stranded == "first-sense") {
+      strand(gr)[bamFlagTest(flag, "isSecondMateRead")] %<>% invertStrand
+    } else {
+      stop("The value of stranded should be 'non-stranded', 'first-sense', or 'first-antisense', but is: ", stranded)
+    }
+  }
+  
+  gr <- granges(sam) %>% rnastrand(mcols(sam)$flag)
+  exons <- if(length(gr) <= maxlen) {
+    exons(edb, columns = "tx_id", filter = GRangesFilter(unique(gr)))
+  } else {
+    exons <- splvec(reduce(gr), 
+                    function(x) exons(edb, columns = "tx_id", filter = GRangesFilter(x)),
+                    maxN = maxlen
+    )
+    exons[!duplicated(data.frame(exons))]
+  }
+  
+  ovlexon <- data.table(
+    tx_id = exons$tx_id,
+    cnt = findOverlaps(narrow(gr, 5, -5), exons, type = "within") %>% countSubjectHits
+  ) %>% .[, .(tx_support_exon = sum(cnt)), by = tx_id]
+  
+  gap <- junctions(sam) %>% rnastrand(mcols(sam)$flag) %>% unlist
+  gaplen <- length(unique(gap))
+  introns <- if(gaplen > 0) {
+    if(gaplen <= maxlen) {
+      intronsByTranscript(edb, filter = GRangesFilter(unique(gap))) %>% unlist  
+    } else {
+      introns <- splvec(unique(gap), 
+                        function(x) intronsByTranscript(edb, filter = GRangesFilter(x)),
+                        maxN = maxlen
+      ) %>% unlist
+      introns[!duplicated(data.frame(introns))]
+    }
+  } else {
+    GRanges()
+  }
+  ovlintron <- if(length(introns) > 0) {
+    data.table(
+      tx_id = names(introns),
+      cnt = countOverlaps(introns, gap, type = "equal")
+    ) %>% .[, .(tx_support_intron = sum(cnt)), by = tx_id]
+  } else {
+    data.table(tx_id = character(0), tx_support_intron = integer(0))
+  }
+  ovlcnt <- merge(ovlexon, ovlintron, all = T, by = "tx_id")
+  ovlcnt[is.na(tx_support_exon), tx_support_exon := 0]
+  ovlcnt[is.na(tx_support_intron), tx_support_intron := 0]
+  ovlcnt %<>% .[tx_support_exon > 0 | tx_support_intron > 0]
+  data.table(ovlcnt[order(-tx_support_intron, -tx_support_exon, tx_id)][1],
+             numgap = length(gap))
 }
 
 fusiontypeByCigar <- function(rtea, bamfile, 
+                              strandedness = c("non-stranded", "first-sense", "first-antisense"),
                               edbpkg = edbPKG, 
                               threads = getOption("mc.cores", detectCores())
 ) {
   require(BiocParallel)
   require(GenomicAlignments)
   require(ensembldb)
-  
+
+  if(missing(strandedness)) {
+    strandedness <- checkStrandedness(bamfile, edbpkg)
+  }
+    
   if(paste0("package:", edbpkg) %in% search()) {
     detach(paste0("package:", edbpkg), unload = T, character.only = T)
   }
+
   trptMatch <- function(i, edbpkg, bamfile, chr, pos, ori) {
     cat(sprintf("\r%0.2f%%              ", i/n*100))
-    
-    library(edbpkg, character.only = T)
-    edb <- get(edbpkg)
-    
-    splvec <- function(x, FUN, maxN, AGGREGATE = c, ...) {
-      spl <- lapply(seq(1, length(x), maxN), function(i1) i1:min(i1 + maxN - 1, length(x)))
-      lst <- lapply(spl, function(i) FUN(x[i], ...))
-      do.call(AGGREGATE, lst)
-    }
-    
-    # sam <- getClippedReads(bamfile, chr, pos, ori)
     sam <- getClippedPairs(bamfile, chr, pos, ori, subsample = T)
-    maxlen <- 900
-    
-    gr <- granges(c(first(sam$pairs), second(sam$pairs), sam$nopair)) %>% unstrand
-    exons <- if(length(gr) <= maxlen) {
-      exons(edb, columns = "tx_id", filter = GRangesFilter(unique(gr)))
-    } else {
-      exons <- splvec(reduce(gr), 
-                      function(x) exons(edb, columns = "tx_id", filter = GRangesFilter(x)),
-                      maxN = maxlen
-      )
-      exons[!duplicated(data.frame(exons))]
-    }
-    
-    ovlexon <- data.table(
-      tx_id = exons$tx_id,
-      cnt = findOverlaps(narrow(gr, 5, -5), exons, type = "within") %>% countSubjectHits
-    ) %>% .[, .(tx_support_exon = sum(cnt)), by = tx_id]
-    
-    gap <- junctions(c(first(sam$pairs), second(sam$pairs), sam$nopair)) %>% unlist %>% unstrand
-    gaplen <- length(unique(gap))
-    introns <- if(gaplen > 0) {
-      if(gaplen <= maxlen) {
-        intronsByTranscript(edb, filter = GRangesFilter(unique(gap))) %>% unlist  
-      } else {
-        introns <- splvec(unique(gap), 
-                          function(x) intronsByTranscript(edb, filter = GRangesFilter(x)),
-                          maxN = maxlen
-        ) %>% unlist
-        introns[!duplicated(data.frame(introns))]
-      }
-    } else {
-      GRanges()
-    }
-    ovlintron <- if(length(introns) > 0) {
-      data.table(
-        tx_id = names(introns),
-        cnt = countOverlaps(introns, gap, type = "equal")
-      ) %>% .[, .(tx_support_intron = sum(cnt)), by = tx_id]
-    } else {
-      data.table(tx_id = character(0), tx_support_intron = integer(0))
-    }
-    ovlcnt <- merge(ovlexon, ovlintron, all = T, by = "tx_id")
-    ovlcnt[is.na(tx_support_exon), tx_support_exon := 0]
-    ovlcnt[is.na(tx_support_intron), tx_support_intron := 0]
-    ovlcnt %<>% .[tx_support_exon > 0 | tx_support_intron > 0]
-    data.table(ovlcnt[order(-tx_support_intron, -tx_support_exon, tx_id)][1],
-               numgap = length(gap))
+    sam <- c(first(sam$pairs), second(sam$pairs), sam$nopair)
+    fusionTxMatch(sam, edbpkg, strandedness)
   }
-  
   msg("Finding matching transcripts...")
   n <- nrow(rtea)
   trpt <- bptry(
@@ -1216,10 +1356,9 @@ fusiontypeByCigar <- function(rtea, bamfile,
     }
   ) %>% rbindlist
   
-  ft <- fusiontype(rtea, trpt$tx_id, edbpkg = edbpkg)
-  stopifnot(identical(trpt$tx_id, ft$tx_id))
-  names(ft) %<>% paste0("fusion_", .)
-  data.table(rtea, ft, trpt[, .(tx_support_exon, tx_support_intron, numgap)])
+  rtea <- fusiontype(rtea, trpt$tx_id, edbpkg = edbpkg)
+  stopifnot(identical(trpt$tx_id, rtea$fusion_tx_id))
+  data.table(rtea, trpt[, .(tx_support_exon, tx_support_intron, numgap)])
 }
 
 nearbypair <- function(rtea, 
