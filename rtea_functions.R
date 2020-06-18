@@ -1563,6 +1563,16 @@ localHardClip <- function(rtea,
                           overhangmin = 5,
                           score_cutoff = 10,
                           threads = getOption("mc.cores", detectCores())) {
+  if(nrow(rtea) == 0) {
+    salign <- data.table(hardstart = integer(0),
+                         hardend = integer(0),
+                         hardTE = character(0),
+                         hardDist = integer(0),
+                         hardNumIntron = integer(0),
+                         hardSpl = character(0)
+    )
+    return( data.table(rtea, salign) )
+  }
   require(bsgenomePKG, character.only = T)
   genome <- get(bsgenomePKG)
   searchstart <- searchend <- rtea$pos  # ungapPos.rtea(rtea)
