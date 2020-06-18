@@ -809,16 +809,17 @@ countClippedReads.ctea <- function(ctea,
     secondary = NA_real_,
     editDistance = NA_real_,
     nonspecificTE = NA_real_,
+    r1pstrand = NA_real_,
     fusion_tx_id = NA_character_,
     tx_support_exon = NA_integer_,
     tx_support_intron = NA_integer_,
-    numgap = NA_integer_,
-    r1pstrand = NA_real_
+    numgap = NA_integer_
   )
   
   n <- nrow(ctea)
   if(n == 0) {
-    return( lapply(NAresult, `[`, 0) )
+    cntdt <- as.data.table(NAresult)[0]
+    return( data.table(ctea, cntdt) )
   }
   
   if(missing(strandedness)) {
@@ -1273,16 +1274,23 @@ fusionTxMatch <- function(sam, edbpkg, strandedness = c("non-stranded", "first-s
       unstrand(gr)
     } else if(stranded == "first-antisense") {
       strand(gr)[bamFlagTest(flag, "isFirstMateRead")] %<>% invertStrand
+      gr
     } else if(stranded == "first-sense") {
       strand(gr)[bamFlagTest(flag, "isSecondMateRead")] %<>% invertStrand
+      gr
     } else {
       stop("The value of stranded should be 'non-stranded', 'first-sense', or 'first-antisense', but is: ", stranded)
     }
   }
   
-  gr <- granges(sam) %>% rnastrand(mcols(sam)$flag)
+  irl <- extractAlignmentRangesOnReference(cigar(sam), pos = start(sam))
+  gr <- GRanges(rep(seqnames(sam), elementNROWS(irl)), 
+                unlist(irl), 
+                rep(strand(sam), elementNROWS(irl))
+  )
+  gr %<>% rnastrand(rep(mcols(sam)$flag, elementNROWS(irl)))
   exons <- if(length(gr) <= maxlen) {
-    exons(edb, columns = "tx_id", filter = GRangesFilter(unique(gr)))
+    exons(edb, columns = "tx_id", filter = GRangesFilter(reduce(gr)))
   } else {
     exons <- splvec(reduce(gr), 
                     function(x) exons(edb, columns = "tx_id", filter = GRangesFilter(x)),
@@ -1293,16 +1301,16 @@ fusionTxMatch <- function(sam, edbpkg, strandedness = c("non-stranded", "first-s
   
   ovlexon <- data.table(
     tx_id = exons$tx_id,
-    cnt = findOverlaps(narrow(gr, 5, -5), exons, type = "within") %>% countSubjectHits
+    cnt = findOverlaps(narrow(gr[width(gr) > 7], 5, -5), exons, type = "within") %>% countSubjectHits
   ) %>% .[, .(tx_support_exon = sum(cnt)), by = tx_id]
   
   gap <- junctions(sam) %>% rnastrand(mcols(sam)$flag) %>% unlist
   gaplen <- length(unique(gap))
   introns <- if(gaplen > 0) {
     if(gaplen <= maxlen) {
-      intronsByTranscript(edb, filter = GRangesFilter(unique(gap))) %>% unlist  
+      intronsByTranscript(edb, filter = GRangesFilter(reduce(gap))) %>% unlist  
     } else {
-      introns <- splvec(unique(gap), 
+      introns <- splvec(reduce(gap), 
                         function(x) intronsByTranscript(edb, filter = GRangesFilter(x)),
                         maxN = maxlen
       ) %>% unlist
