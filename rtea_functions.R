@@ -368,6 +368,7 @@ subsampleBam <- function(bamfile,
     return(sam)
   }
   region <- paste0(seqnames(gr), ":", start(gr), "-", end(gr), collapse = " ")
+  msg("Subsampling ", region, " from ", numReads, " reads to ", maxReads)
   awk <- "'BEGIN {srand()} /^@/ {print} !/^@/ {if(rand() * n-- < p) {p--; print; if(p==0) exit}}'"
   cmd <- paste("samtools view -h -q", mapqFilter, bamfile, region, "|",
                "awk", awk, sprintf("n=%d p=%d", numReads, maxReads), "|",
@@ -651,13 +652,16 @@ compareClippedSeq <- function(sseq, seq, ori,
   } else {
     paste0(sseq, stringr::str_dup(".", nchar(seq) - nchar(sseq)))
   }
-  seq %<>% DNAStringSet
-  matchscore <- nucleotideSubstitutionMatrix(match = 0, mismatch = 1, baseOnly = TRUE) %>%
-    cbind(N = 0, . = 0) %>% 
-    rbind(N = 0, . = 0)
-  differ <- sapply(gseq, function(x) {
-    stringDist(c(seq, x), method = "substitutionMatrix", substitutionMatrix = matchscore, gapOpening = 100)
-  }) / nchar(sseq)
+  # seq %<>% DNAStringSet
+  # matchscore <- nucleotideSubstitutionMatrix(match = 0, mismatch = 1, baseOnly = TRUE) %>%
+  #   cbind(N = 0, . = 0) %>% 
+  #   rbind(N = 0, . = 0)
+  # differ <- sapply(gseq, function(x) {
+  #   stringDist(c(seq, x), method = "substitutionMatrix", substitutionMatrix = matchscore, gapOpening = 100)
+  # }) / nchar(sseq)
+  seqm <- strsplit(gseq, "") %>% do.call(rbind, .)
+  seqm[seqm %in% c(".", "N")] <- NA
+  differ <- sweep(seqm, 2, strsplit(seq, "")[[1]], "!=") %>% rowSums(na.rm = T) %>% {. / nchar(sseq)}
   if(nchar(seq) < 2) shift_range <- 0
   if(shift_range <= 0) {
     differ
