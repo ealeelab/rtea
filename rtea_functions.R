@@ -908,7 +908,7 @@ countClippedReads.ctea <- function(ctea,
 
       mcols(sam)$seq <- NULL
       mcols(sam)$sseq <- NULL
-      sampair <- getClippedPairs(bamfile, chr, pos, ori, sam[isMatch]) %>% {
+      sampair <- getClippedPairs(bamfile, chr, pos, ori, sam[isMatch], subsample = T) %>% {
         c(first(.$pairs), second(.$pairs), .$nopair)
       }
       fusionTx <- fusionTxMatch(sampair, edbpkg, strandedness)
