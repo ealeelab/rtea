@@ -23,11 +23,13 @@ thisdir <- if(length(this) == 1) {
 }
 
 option_list <- list( 
+  make_option(c("-b", "--bamfile"), help = "bam file path"),
   make_option(c("-c", "--cteafile"), help = "ctea output file path"),
-  make_option(c("-o", "--outfile"), help = "output directory"),
+  make_option(c("-o", "--outfile"), help = "output file"),
   make_option(c("-t", "--threads"), type = "integer", default = 2, help = "number of threads"),
   make_option(c("--genome_build"), default = "hg38", help = "reference genome build"),
   make_option(c("--rtea_script"), default = file.path(thisdir, "rtea_functions.R"), help = "rtea Rscript file"),
+  make_option(c("--filter_script"), default = file.path(thisdir, "ctea_filter.R"), help = "ctea_filter Rscript file"),
   make_option(c("--refdir"), help = "directory containing reference files")
 )
 opt <- parse_args(OptionParser(option_list = option_list))
@@ -44,14 +46,26 @@ RTEA <- new.env()
 sys.source(rtea_script, RTEA, chdir = T)
 attach(RTEA)
 
-ctea <- readctea(cteafile)
-ctea <- filterUnlocalized.ctea(ctea)
-ctea <- filterSimpleRepeat.ctea(ctea)
-ctea <- repeatPositon.ctea(ctea)
-ctea <- filterSimpleSite(ctea)
-ctea <- filterNoClip.ctea(ctea, threads = threads)
-ctea <- TEcoordinate(ctea, threads = threads)
-ctea[isPolyA == T, class := "PolyA"]
-ctea <- ctea[isPolyA | TEscore > 0, ]
-fwrite(ctea, outfile, sep = "\t", quote = F, na = "NA")
+precntfile <- paste0(dirname(outfile), "/precount_", basename(outfile))
+system2(filter_script,
+        c("-c", cteafile,
+          "-o", precntfile,
+          "-t", threads,
+          "--genome_build", genome_build,
+          "--rtea_script", rtea_script,
+          "--refdir", refdir
+        )
+)
+ctea <- fread(precntfile)
 
+rtea <- countClippedReads.ctea(ctea, bamfile, threads = threads)
+rtea <- rtea[trueCnt >= 3 | (isPolyA & polyAcnt >=3), ]
+rtea <- annotate.ctea(rtea)
+rtea <- polyTElocation.ctea(rtea)
+rtea <- localHardClip(rtea, threads = threads)
+rtea <- fusiontype(rtea)
+rtea <- cntFilter.ctea(rtea)
+
+writeLines(paste("Writing result to", outfile))
+print(head(rtea))
+fwrite(rtea, outfile, sep="\t", na="NA", quote=F)
