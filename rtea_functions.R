@@ -24,19 +24,15 @@ if(!file.exists(file.path(thisdir, "rtea_functions.R"))) {
 ##### reference files #####
 build <- getOption("genome_build", "hg38")
 refdir <- getOption("refdir", file.path(thisdir, "ref", build))
-# polyTE_file <- paste0("/home/bl177/lee/boram/ref/polymorphicTE/GRanges_union_non_reference_TEI_", build, ".rds")
 polyTE_file <- file.path(refdir, "GRanges_union_non_reference_TEI.rds")
 bsgenomePKG <- paste0("BSgenome.Hsapiens.UCSC.", build)
 edbPKG <- switch(build,
                  hg38 = "EnsDb.Hsapiens.v86",
                  hg19 = "EnsDb.Hsapiens.v75"
 )
-# gene_file <- file.path(refdir, "annotation_data.gtf")
 gene_file <- file.path(refdir, "annotation_data.rds")
-# rmsk_gtf_file <- file.path(refdir, "rmsk.gtf")
 rmsk_file <- file.path(refdir, "rmsk.rds")
 refTEfa <- getOption("refTEfa", file.path(refdir, "consensus_L1_ALU_SVA_HERV.fa"))
-# if(is.null(refTEfa)) refTEfa <- "/home/bl177/rnatea/ref/hg38.RepeatMasker-4.0.6-Dfam-2.0.fa"
 
 ##### functions #####
 msg <- function(...) {
