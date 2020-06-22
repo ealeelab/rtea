@@ -1554,7 +1554,11 @@ annotate.ctea <- function(ctea,
   )
   dwmatch <- dwmatch[, .(gene = paste(gene, collapse = ",")), by = idx]
   anno[, downstream := dwmatch[match(.I, idx), gene]]
-  data.table(ctea, anno[, .(gene_id, gene_name, transcript_id, transcript_name, type, type_number, strand, upstream, downstream)])
+  names(anno) %<>% paste0("pos_", .)
+  data.table(ctea, anno[, .(pos_gene_id, pos_gene_name, pos_transcript_id, pos_transcript_name, 
+                            pos_type, pos_type_number, pos_strand, pos_upstream, pos_downstream)
+                        ]
+  )
   
 }
 
