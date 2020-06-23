@@ -34,8 +34,8 @@ SAMTOFQ_CMD="java -jar $PICARD $nl
    VALIDATION_STRINGENCY=LENIENT"
 
 RNATEA_CMD="$RNATEA_PIPELINE $nl
-   ${R1} $nl
-   ${R2} $nl
+   ${R1}.gz $nl
+   ${R2}.gz $nl
    $PREFIX $nl
    $HISAT_REF $nl
    $THREADS $nl
@@ -76,9 +76,9 @@ echo ${LINE}SamToFastq${LINE}
 RunCMD $R1 $SAMTOFQ_CMD
 echo
 
-#echo "Processing gzip"
-#pigz $R1
-#pigz $R2
+echo "Processing gzip"
+pigz --best $R1
+pigz --best $R2
 
 echo "Next Processing"
 

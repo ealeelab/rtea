@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-VERSION="1.2"
+VERSION="1.9"
 IMAGES_NAME="rtea-tcga"
 
 PROJECT_NAME="aleelab-ten"

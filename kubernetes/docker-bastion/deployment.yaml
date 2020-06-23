@@ -1,28 +1,29 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: rtea-tcga-bation
+  name: rtea-tcga-bastion
   generation: 1
   labels:
-    app: rtea-tcga-bation
+    app: rtea-tcga-bastion
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: rtea-tcga-bation
+      app: rtea-tcga-bastion
   template:
     metadata:
       labels:
-        app: rtea-tcga-bation
+        app: rtea-tcga-bastion
     spec:
       volumes:
         - name: pv-storage-worker
           persistentVolumeClaim:
             claimName: pv-claim-tcga-worker
-        - name: pv-nfs
-          persistentVolumeClaim:
-            claimName: fileserver-claim
-            readOnly: false
+            readOnly: true
+        #- name: pv-nfs
+        #  persistentVolumeClaim:
+        #    claimName: fileserver-claim
+        #    readOnly: false
       dnsPolicy: ClusterFirst
       containers:
         - name: c-rtea-tcga-bastion
@@ -33,8 +34,9 @@ spec:
           volumeMounts:
             - mountPath: /worker
               name: pv-storage-worker
-            - mountPath: /nfs-data
-              name: pv-nfs
+              readOnly: true
+            #- mountPath: /nfs-data
+            #  name: pv-nfs
           env:
             - name: BROKER_URL
               value: amqp://guest:guest@rabbitmq-service:5672

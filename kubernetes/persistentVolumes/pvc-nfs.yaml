@@ -5,8 +5,7 @@ metadata:
 spec:
   accessModes:
     - ReadWriteMany
-  volumeMode: Filesystem
-  storageClassName: slow
+  storageClassName: ""
   volumeName: fileserver
   resources:
     requests:

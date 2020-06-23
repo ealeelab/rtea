@@ -88,11 +88,10 @@ RUN R -e "BiocManager::install(c( \
             'BSgenome.Hsapiens.UCSC.hg38', \
             'EnsDb.Hsapiens.v75', \
             'EnsDb.Hsapiens.v86', \
-            'GenomicFiles' \
           ))"
 
 RUN apt-get update && apt-get install -y libssl-dev
-RUN R -e 'BiocManager::install("GenomicFiles")'
+#RUN R -e 'BiocManager::install("GenomicFiles")'
 
 # rtea files from Boram
 COPY ref rtea/
@@ -114,9 +113,24 @@ ENV PATH=/app/rtea:$PATH
 RUN apt-get update && apt-get install -y openjdk-8-jdk
 RUN wget https://github.com/broadinstitute/picard/releases/download/2.21.7/picard.jar
 
+# COPY System Logger Files
+COPY kubernetes/persistentVolumes/checkHardwareUsage.sh rtea/
+RUN chmod +x /app/rtea/checkHardwareUsage.sh
+
+COPY kubernetes/persistentVolumes/checkMemoryUsage.sh rtea/
+RUN chmod +x /app/rtea/checkMemoryUsage.sh
+
+COPY kubernetes/persistentVolumes/checkDiskSpace.sh rtea/
+RUN chmod +x /app/rtea/checkDiskSpace.sh
+
 # Copy additional files for Kubernetes
 COPY kubernetes/DBLogger.py rtea/
+COPY kubernetes/Config.py rtea/
+COPY kubernetes/aleelab-ten-key.json rtea/
 COPY kubernetes/gdc-user-token.txt rtea/
+COPY kubernetes/gdc-user-token-js.txt rtea/
+RUN chmod 600 /app/rtea/gdc-user-token-js.txt
+
 COPY kubernetes/gdc-client rtea/
 COPY kubernetes/worker.py rtea/
 
@@ -151,6 +165,7 @@ RUN conda update --all
 
 # Install required python package
 RUN pip install mysql-connector-python
+RUN pip install google-cloud-storage
 
 ## Install AMQP-Tools
 RUN apt-get update && \
@@ -161,6 +176,7 @@ RUN apt-get update && \
 ## NFS setting
 RUN apt-get -y update
 RUN apt-get -y install nfs-common
+RUN pip install pika
 
 # Packages for Google SDK
 #RUN apt-get install gnupg gnupg2 gnupg1
@@ -172,4 +188,5 @@ RUN apt-get -y install nfs-common
 #RUN apt install sudo
 #RUN echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] http://packages.cloud.google.com/apt cloud-sdk main" | tee -a /etc/apt/sources.list.d/google-cloud-sdk.list && curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | apt-key --keyring /usr/share/keyrings/cloud.google.gpg  add - && apt-get update -y && apt-get install google-cloud-sdk -y
 
-CMD /usr/bin/amqp-consume --url=$BROKER_URL -q $QUEUE -c 1 /app/rtea/worker.py
+#CMD /usr/bin/amqp-consume --url=$BROKER_URL -q $QUEUE -c 1 /app/rtea/worker.py
+CMD python /app/rtea/worker.py

@@ -1,68 +1,70 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: job-tcga-test
+  name: job-tcga-read-test-pronly
 spec:
-  completions: 2
-  parallelism: 2
+  backoffLimit: 500
+  #successfulJobsHistoryLimit: 500
+  #failedJobsHistoryLimit: 500
+  #activeDeadlineSeconds: 864000
+  #completions: 8
+  parallelism: 8
+  #terminationGracePeriodSeconds: 0
   template:
     metadata:
-      name: job-tcga-wq-esca
+      name: job-tcga-wq-read-pronly
     spec:
-      volumes:
-        - name: pv-storage-worker
-          persistentVolumeClaim:
-            claimName: pv-claim-tcga-worker
-            readOnly: true
-        - name: pv-nfs
-          persistentVolumeClaim:
-            claimName: fileserver-claim
-            readOnly: false
+      terminationGracePeriodSeconds: 0
       dnsPolicy: ClusterFirst
       containers:
-      - name: c-test
-        image: gcr.io/aleelab-ten/rtea-tcga:1.2
+      - name: c-worker-read
+        image: gcr.io/aleelab-ten/rtea-tcga:1.8.3
         resources:
           limits:
-            memory: "30Gi"
-            cpu: "5"
+            memory: "11.6Gi" #(20Gi worked, 27Gi worked)
+            cpu: "3700m" #(4,7 is worked, 7500m worked, 7700m worked)
           requests:
-            memory: "25Gi"
-            cpu: "4"
+            memory: "11.4Gi"
+            cpu: "3600m"
         stdin: true
         tty: true
-        volumeMounts:
-          - mountPath: /nfs-data
-            name: pv-nfs
-          - mountPath: /worker
-            name: pv-storage-worker
-            readOnly: true
         env:
-        - name: BROKER_URL
-          value: amqp://guest:guest@rabbitmq-service:5672
-        - name: QUEUE
-          value: test
-        - name: WORK_PATH
-          value: /app/rtea
-        - name: OUTPUT_PATH
-          value: /nfs-data/results/test
-        - name: SAMPLE_PATH
-          value: /nfs-data/samples
-        - name: TEMP_PATH
-          value: /app/rtea/output
-        - name: TARGET_FILE_EXT
-          value: bam
-        - name: REF_PATH
-          value: /worker/ref/hg38
-        - name: DB_USER
-          value: aleelab
-        - name: DB_PASSWORD
-          value: aleelabAprom3!
-        - name: DB_HOST
-          value: 34.73.61.94
-        - name: DB_NAME
-          value: logger_db
-      restartPolicy: OnFailure
+          - name: PROJECT_NAME
+            value: "aleelab-ten"
+          - name: TOTAL_TASK_COUNTS
+            value: "177"
+          - name: BROKER_URL
+            value: amqp://guest:guest@rabbitmq-service:5672
+          - name: QUEUE
+            value: "READ"
+          - name: WORK_PATH
+            value: /app/rtea
+          - name: TEMP_PATH
+            value: /app/rtea/output
+          - name: MULTI_THREADS
+            value: "4"
+          - name: TARGET_FILE_EXT
+            value: bam
+          - name: REF_BUCKET
+            value: aleelab-ten-tcga-ref
+          - name: REF_PREFIX
+            value: grch38_snp_tran
+          - name: REF_PATH
+            value: /app/rtea/hg38
+          - name: OUTPUT_BUCKET
+            value: aleelab-ten-tcga-results
+          - name: DB_USER
+            value: aleelab
+          - name: DB_PASSWORD
+            value: aleelabAprom3!
+          - name: DB_HOST
+            value: 34.73.61.94
+          - name: DB_NAME
+            value: logger_db
+          - name: GOOGLE_APPLICATION_CREDENTIALS
+            value: /app/rtea/aleelab-ten-key.json
+      restartPolicy: Never
+      #restartPolicy: OnFailure
       nodeSelector:
-        cloud.google.com/gke-nodepool: tcga-job-pool
+        cloud.google.com/gke-nodepool: tcga-job-n1-low-pool
 
