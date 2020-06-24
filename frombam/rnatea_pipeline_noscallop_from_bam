@@ -8,8 +8,8 @@ OUT_DIR=${5:-$PWD}
 BUILD=${6:="hg38"}
 RESUME=${7:-"overwrite"}
 
-R1=${OUT_DIR}/fastq/${PREFIX}.1.fq.gz
-R2=${OUT_DIR}/fastq/${PREFIX}.2.fq.gz
+R1=${OUT_DIR}/fastq/${PREFIX}.1.fq
+R2=${OUT_DIR}/fastq/${PREFIX}.2.fq
 FQQC=${OUT_DIR}/bam/${PREFIX}.fastp.json
 BAM=${OUT_DIR}/bam/${PREFIX}.hisat2.bam
 SCALLOP_OUTPUT=${OUT_DIR}/bam/${PREFIX}.scallop.gtf
@@ -76,8 +76,8 @@ echo ${LINE}SamToFastq${LINE}
 RunCMD $R1 $SAMTOFQ_CMD
 echo
 
-gzip $R1 &
-gzip $R2 &
+pigz -p $THREADS $R1 &
+pigz -p $THREADS $R2 &
 wait
 
 echo ${LINE}
