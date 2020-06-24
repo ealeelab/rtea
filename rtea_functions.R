@@ -784,6 +784,7 @@ countClippedReads.ctea <- function(ctea,
                                    mismatch_cutoff = 0.1, 
                                    cliplength_cutoff = 4,
                                    maxReads = 1e5,
+                                   fusiontype_cutoff = 3,
                                    threads = getOption("mc.cores", detectCores())) {
   library(BiocParallel)
   require(GenomicAlignments)
@@ -900,7 +901,7 @@ countClippedReads.ctea <- function(ctea,
       r1pstrand = mean(r1strand[isMatch] == "+")
     )
     
-    if(sum(isMatch) >= 3) {
+    if(sum(isMatch) >= fusiontype_cutoff) {
 
       mcols(sam)$seq <- NULL
       mcols(sam)$sseq <- NULL

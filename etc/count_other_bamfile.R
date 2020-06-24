@@ -47,6 +47,8 @@ if(startsWith(chrnames[1], "chr")) {
 } else {
   rtea[, chr := sub("^chr", "", chr)]
 }
-wgscnt <- countClippedReads.ctea(rtea[, chr:TEbreak], bamfile)
-wgscnt %<>% data.table(rtea[, gene_id:polyTE])
-fwrite(wgscnt, outfile, sep = "\t", na = "NA", quote = F)
+cnt <- countClippedReads.ctea(rtea[, chr:TEbreak], bamfile, 
+                              strandedness = "non-stranded",
+                              fusiontype_cutoff = Inf)
+cnt %<>% data.table(rtea[, !names(.), with = F])
+fwrite(cnt, outfile, sep = "\t", na = "NA", quote = F)
