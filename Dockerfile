@@ -31,22 +31,6 @@ RUN wget https://github.com/samtools/samtools/releases/download/1.9/samtools-1.9
     && cd /app \
     && rm -r samtools-1.9.tar.bz2 samtools-1.9
 
-# htslib for scallop
-RUN wget https://github.com/samtools/htslib/releases/download/1.9/htslib-1.9.tar.bz2 \
-    && tar -xjf htslib-1.9.tar.bz2 \
-    && cd htslib-1.9 \
-    && ./configure --disable-bz2 --disable-lzma --disable-gcs --disable-s3 --enable-libcurl=no \
-    && make \
-    && make install \
-    && cd /app \
-    && rm -r htslib-1.9.tar.bz2 htslib-1.9
-
-# scallop
-RUN wget https://github.com/Kingsford-Group/scallop/releases/download/v0.10.4/scallop-0.10.4_linux_x86_64.tar.gz \
-    && tar -xzf scallop-0.10.4_linux_x86_64.tar.gz \
-    && mv scallop-0.10.4_linux_x86_64/scallop /usr/local/bin \
-    && rm -r scallop-0.10.4_linux_x86_64.tar.gz scallop-0.10.4_linux_x86_64
-
 # bamtools
 RUN wget https://github.com/pezmaster31/bamtools/archive/v2.5.1.tar.gz \
     && tar -xzf /app/v2.5.1.tar.gz \

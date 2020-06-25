@@ -1,4 +1,4 @@
-#!/bin/env Rscript
+#!/usr/bin/env Rscript
 
 options(error = function(){
   sink(stderr())
@@ -22,7 +22,7 @@ thisdir <- if(length(this) == 1) {
   getwd()
 }
 
-option_list <- list( 
+option_list <- list(
   make_option(c("-b", "--bamfile"), help = "bam file path"),
   make_option(c("-c", "--cteafile"), help = "ctea output file path"),
   make_option(c("-o", "--outfile"), help = "output file"),
@@ -47,8 +47,9 @@ sys.source(rtea_script, RTEA, chdir = T)
 attach(RTEA)
 
 precntfile <- paste0(dirname(outfile), "/precount_", basename(outfile))
-system2(filter_script,
-        c("-c", cteafile,
+system2("Rscript",
+        c(filter_script,
+          "-c", cteafile,
           "-o", precntfile,
           "-t", threads,
           "--genome_build", genome_build,

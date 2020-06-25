@@ -1,4 +1,4 @@
-#!/bin/env Rscript
+#!/usr/bin/env Rscript
 
 options(error = function(){
   sink(stderr())
@@ -22,7 +22,7 @@ thisdir <- if(length(this) == 1) {
   getwd()
 }
 
-option_list <- list( 
+option_list <- list(
   make_option(c("-c", "--cteafile"), help = "ctea output file path"),
   make_option(c("-o", "--outfile"), help = "output directory"),
   make_option(c("-t", "--threads"), type = "integer", default = 2, help = "number of threads"),
@@ -54,4 +54,3 @@ ctea <- TEcoordinate(ctea, threads = threads)
 ctea[isPolyA == T, class := "PolyA"]
 ctea <- ctea[isPolyA | TEscore > 0, ]
 fwrite(ctea, outfile, sep = "\t", quote = F, na = "NA")
-
