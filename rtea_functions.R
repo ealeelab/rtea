@@ -905,12 +905,12 @@ countClippedReads.ctea <- function(ctea,
 
       mcols(sam)$seq <- NULL
       mcols(sam)$sseq <- NULL
-      sampair <- getClippedPairs(bamfile, chr, pos, ori, sam[isMatch], subsample = T) %>% {
+      sampair <- getClippedPairs(bamfile, chr, pos, ori, sam[isMatch], 
+                                 subsample = T, maxReads = maxReads) %>% {
         c(first(.$pairs), second(.$pairs), .$nopair)
       }
       fusionTx <- fusionTxMatch(sampair, edbpkg, strandedness)
     } else {
-      # fusionTx <- fusionTxMatch(sam)
       fusionTx <- data.table(tx_id = NA_character_,
                              tx_support_exon = NA_integer_,
                              tx_support_intron = NA_integer_,
