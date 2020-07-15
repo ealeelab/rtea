@@ -1,4 +1,4 @@
-FROM rtea-tcga:1.8.6
+FROM rtea-tcga:2.0.4
 MAINTAINER Boram Lee
 
 WORKDIR /app
@@ -34,12 +34,18 @@ WORKDIR /app
 
 #COPY kubernetes/worker.py rtea/
 #COPY kubernetes/gdc-user-token-js.txt rtea/
-RUN chmod 600 /app/rtea/gdc-user-token-js.txt
+#RUN chmod 600 /app/rtea/gdc-user-token-js.txt
+#COPY rnatea_pipeline_noscallop_from_bam rtea/
+#COPY ref rtea/ref/
+#COPY ctea rtea/ctea/
+#COPY etc rtea/etc/
+#COPY frombam rtea/frombam/
+COPY rtea_functions.R rtea/
 #COPY kubernetes/DBLogger.py rtea/
 #COPY kubernetes/Config.py rtea/
 #COPY kubernetes/aleelab-ten-key.json rtea/
 
-#RUN ls -la rtea/*
+RUN ls -la rtea/*
 
 # AWS SDK install
 #RUN curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"

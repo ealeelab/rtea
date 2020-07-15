@@ -87,26 +87,30 @@ RUN R -e "BiocManager::install(c( \
             'BSgenome.Hsapiens.UCSC.hg19', \
             'BSgenome.Hsapiens.UCSC.hg38', \
             'EnsDb.Hsapiens.v75', \
-            'EnsDb.Hsapiens.v86', \
+            'EnsDb.Hsapiens.v86' \
           ))"
 
 RUN apt-get update && apt-get install -y libssl-dev
 #RUN R -e 'BiocManager::install("GenomicFiles")'
 
 # rtea files from Boram
-COPY ref rtea/
-COPY ctea rtea/
-COPY etc rtea/
-COPY frombam rtea/
-COPY ctea2rtea.R rtea/
+COPY ref rtea/ref/
+COPY ctea rtea/ctea/
+COPY etc rtea/etc/
+COPY frombam rtea/frombam/
+COPY *.R rtea/
+
+#COPY ctea2rtea.R rtea/
+#COPY ctea_filter.R rtea/
 COPY HISAT2_TE.sh rtea/
+
 COPY isb_cgc_api_v3.py rtea/
 COPY rnatea_pipeline_from_bam rtea/
 COPY rnatea_pipeline_noscallop_from_bam rtea/
-COPY rtea_functions.R rtea/
+#COPY rtea_functions.R rtea/
 COPY rtea_pipeline rtea/
 COPY rtea_pipeline_without_scallop rtea/
-COPY run_ctea.R rtea/
+#COPY run_ctea.R rtea/
 
 ENV PATH=/app/rtea:$PATH
 
@@ -178,11 +182,13 @@ RUN apt-get -y update
 RUN apt-get -y install nfs-common
 RUN pip install pika
 
+RUN ls -la rtea/*
+
 # Packages for Google SDK
 #RUN apt-get install gnupg gnupg2 gnupg1
 # RUN apt-get install libssl1.0.0 libssl-dev
 
-## Google Cloud SDK
+## Google Cloud SDadfjkk
 #FROM alpine:3.6 RUN apk add --update \ python \ curl \ which \ bash RUN curl -sSL https://sdk.cloud.google.com | bash ENV PATH $PATH:/root/google-cloud-sdk/bin
 # RUN curl -sSL https://sdk.cloud.google.com | bash
 #RUN apt install sudo

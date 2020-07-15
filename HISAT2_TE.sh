@@ -76,11 +76,6 @@ RunCMD() {
 }
 
 RunCMD $TRIMMED_R1 $fastpCMD
-
-echo "Delete redundant files"
-rm -rf $R1
-rm -rf $R2
-
 RunCMD ${OUT_PREFIX}.hisat2.presort.bam $cmd
 RunCMD ${OUT_PREFIX}.hisat2.bam samtools sort -@ $threads -o ${OUT_PREFIX}.hisat2.bam ${OUT_PREFIX}.hisat2.presort.bam
 RunCMD ${OUT_PREFIX}.hisat2.bam.bai samtools index -@ $threads ${OUT_PREFIX}.hisat2.bam
