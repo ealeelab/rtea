@@ -46,6 +46,11 @@ reattach <- function() {
   attach(TEI)
 }
 
+getmode <- function(v) {
+  uniqv <- unique(v)
+  uniqv[which.max(tabulate(match(v, uniqv)))]
+}
+
 pastechr <- function(x) {
   sub("^(chr)?", "chr", sub("MT", "M", x))
 }
@@ -890,7 +895,7 @@ countClippedReads.ctea <- function(ctea,
       mateDist = suppressWarnings(min(abs(pos - meta$mpos)[isOverClip])),
       anyWrongPos = sum(!isProperPair & !mateUnmapped & !isMateSide & isMatch),
       overhang = suppressWarnings(median(meta$overhang[isMatch & !shortClip])),
-      gap = suppressWarnings(median(meta$gap[isMatch & !shortClip])),
+      gap = suppressWarnings(getmode(meta$gap[isMatch & !shortClip])),
       secondary = mean(isSecondary[isMatch]),
       editDistance = mean(meta$NM[isMatch]),
       nonspecificTE = mean(isTEread[isMatch]),
