@@ -8,3 +8,9 @@ kubernetes
 SRR811285
 SRR811285/
 output/
+node_modules/
+/analysis/.ipynb_checkpoints/
+/analysis/rawData/
+/analysis/resultData/
+/analysis/sourceFiles/
+/analysis/figures/
