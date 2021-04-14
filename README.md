@@ -1,69 +1,161 @@
-RTEA
-====
-RNA-TE fusion finder
+# rTEA (RNA Transposable Element Analyzer)
 
-## Dependency
-1. [fastp](https://github.com/OpenGene/fastp)
-2. [hisat2](https://ccb.jhu.edu/software/hisat2/index.shtml)
-3. [samtools](http://www.htslib.org/)
-4. [bamtools](https://github.com/pezmaster31/bamtools)
-5. [bwa](http://bio-bwa.sourceforge.net/)
-6. [awk](https://www.gnu.org/software/gawk/)
-7. R packages
-   * magrittr
-   * data.table
-   * stringr
-   * optparse
-   * Rcpp
-   * GenomicAlignments
-   * BSgenome.Hsapiens.UCSC.hg19
-   * BSgenome.Hsapiens.UCSC.hg38
-	 * EnsDb.Hsapiens.v75
-	 * EnsDb.Hsapiens.v86
+A computational method for any TE-fusion transcripts.
+* Citation : Boram Lee, Junseok Park, Yoonju Choi, Woongyang Park and Alice Eunjung Lee. [Landscape of transposon-fusion RNA in human tissues and cancers](https://). bioRxiv. 2021 Apr; https://doi.org/xxx
 
-## Usage
-```bash
-./rtea_pipeline <R1.fq.gz> <R2.fq.gz> <sample_name> <hisat2_ref> <threads> <out_dir> <build>
+---
+
+
+# Installation
+rTEA is running on Linux based OS with prerequisite softwares. Here is the software you should install before you start to use rTEA.
+
+* System softwares for Ubuntu 18.04 LTS
 ```
-**hisat2_ref**: Unpacked [hisat2 index](ftp://ftp.ccb.jhu.edu/pub/infphilo/hisat2/data) path
+apt-get update && apt-get install -y \
+    cmake \
+    libxml2-dev \
+    libcurl4-openssl-dev \
+    libboost-dev \
+    gawk \
+    libssl-dev \
+    pigz \
+    htop \
+    iputils-ping
+```
+
+* Dependency tools and ENV variables are needed too before installing rTEA.
+
+  * [fastp]( http://opengene.org/fastp/fastp)
+  * [HISAT2](http://opengene.org/fastp/fastp) (>= 2.1.0)
+  * [samtools](https://github.com/samtools/samtools/releases/download/1.9/samtools-1.9.tar.bz2) (>= 1.9)
+  * [HTSlib](https://github.com/samtools/htslib/releases/download/1.9/htslib-1.9.tar.bz2) (>= 1.9)
+  * [Scallop](https://github.com/Kingsford-Group/scallop/releases/download/v0.10.4/scallop-0.10.4_linux_x86_64.tar.gz) (>=0.10.4)
+  * [bamtools](https://github.com/pezmaster31/bamtools/archive/v2.5.1.tar.gz) (>=2.5.1)
+  ```
+  # Bamtools environment
+  # BAMTOOL_HOME is installed directory
+  PKG_CXXFLAGS="-I$BAMTOOL_HOME/include/bamtools"
+  PKG_LIBS="-L$BAMTOOL_HOME/lib -lbamtools"
+  ```
+  * [bwa](https://github.com/lh3/bwa/releases/download/v0.7.17/bwa-0.7.17.tar.bz2) (>=0.7.17)
+
+* [R](https://cran.r-project.org/) (==3.6.2) and necessary R softwares should be installed.
+```
+R -e "install.packages('XML', repos = 'http://www.omegahat.net/R')"
+R -e "install.packages(c( \
+       'magrittr', \
+       'data.table', \
+       'stringr', \
+       'optparse', \
+       'Rcpp', \
+       'BiocManager' \
+     ))"
+
+R -e "BiocManager::install(c( \
+       'GenomicAlignments', \
+       'BSgenome.Hsapiens.UCSC.hg19', \
+       'BSgenome.Hsapiens.UCSC.hg38', \
+       'EnsDb.Hsapiens.v75', \
+       'EnsDb.Hsapiens.v86' \
+     ))"
+```
+* Download GRCh38 [genome_snp_tran](https://genome-idx.s3.amazonaws.com/hisat/grch38_snptran.tar.gz)
 
 
-## Output
-1. chr: Chromosome name
-2. pos: Fusion breakpoint position on the chromosome
-3. ori: Fusion direction on the chromosome (f, TE|gene; r, gene|TE)
-5. class: TE class
-9. seq: Proximal portion of fusion sequence
-10. isPolyA: Whether it is a fusion with polyA sequence
-11. posRepFamily: Repeat masked repeat family on the breakpoint position
-12. posRep: Repeat maskec repeat element on the breakpoint position
-16. TEfamily: TE family with highest alingment score when fusion sequence is aligned with consensus TE sequence.
-17. TEscore: Alignment score of fusion sequence with the consensus TE sequence.
-18. TEside: Fusion direction on the consensus TE sequence (5, TE|gene; 3, gene|TE)
-19. TEbreak: Fusion breakpoint position on the consensus TE sequence.
-20. depth: Number of RNA-seq reads on the breakpoint position
-21. matchCnt: Number of fusion supporting RNA-seq reads.
-25. polyAcnt: Number of polyA reads
-28. baseQual: Median base quality of supporting reads.
-29. lowMapQual: Number of supporting reads that has low mapping quality
-32. mateDist: Minimum distance of mate reads
-34. overhang: Distance of breakpoint from splice site
-35. gap: Length of nearby intron
-36. secondary: Proportion supporting reads that is from secondary alignment
-38. nonspecificTE: Mean alignment score of supporting reads to consensus TE sequence
-39. r1pstrand: Proportion of supporting reads that is from positive strand of chromosome
-40. fusion_tx_id: Transcript ID of the fusion transcript
-41. tx_support_exon: Number of read fragments spanning exonic region of the fusion transcript ID
-42. tx_support_intron: Number of read gaps matching the fusion transcript ID
-44. strand: Strand of fusion transcript
-49. pos_type: Genomic region of breakpoint
-54. polyTE: Known non-reference TE on the breakpoint position
-55. hardstart: Start position of nearby reference genome where fusion sequence came from
-56. hardend: Start position of nearby reference genome where fusion sequence came from
-57. hardTE: Repeat masked TE subfamily of nearby reference genome where fusion sequence came from
-58. hardDist: Distance from fusion breakpoint to nearby reference genome where fusion sequence came from
-61. fusion_type: Type of TE fusion
-62. fusion_tx_biotype: Biotype of fusion transcript
-63. fusion_gene_id: Gene ID of fusion transcript
-64. fusion_gene_name: Gene symbol of fusion transcript
-65. Filter: Filter reason of low confidence fusion
+## Use Docker for Installation
+Build docker file and running the rTEA in the docker container
+```
+DOCKER_BUILDKIT=1 docker build -t rTEA .
+```
+
+## Use Singularity for Installation
+After creating docker image for rTEA, convert the image to singularity.
+
+```
+docker save -o rTEA.tar rTEA:latest
+singularity build rTEA.simg docker-archive://rTEA.tar
+```
+
+---
+
+# Running rTEA
+If running environment is Docker, run docker image for running rTEA.
+```
+docker exec -it -v ${GENOME_SNP_TRAN_DIR}:/app/rtea/hg38/genome_snp_tran rTEA bash
+```
+If running environment is Singularity, execute Singularity image for running rTEA.
+```
+singularity shell -B ${GENOME_SNP_TRAN_DIR}:/app/rtea/hg38/genome_snp_tran \
+    rTEA.simg
+```
+
+rTEA support two kinds of input files; paired fastq and bam file.
+For the paired fastq file, use following command;
+```
+rtea_pipeline_without_scallop \
+        ${R1.fq}.gz \
+        ${R2.fq}.gz \
+        $SAMPLE_NAME \
+        $GENOME_SNP_TRAN_DIR \
+        $NUMBER_OF_CORES \
+        $OUT_DIR \
+        hg38 \
+        resume
+```
+
+For the bam file, an user can use rTEA with more simple parametes.
+```
+rnatea_pipeline_noscallop_from_bam \
+			${SAMPLE.bam} \
+			$SAMPLE_NAME \
+			$GENOME_SNP_TRAN_DIR \
+			$NUMBER_OF_CORES \
+			$OUT_DIR
+```
+
+
+# rTEA output file
+After running rTEA, an user can obtain <SAMPLE_NAME>.rtea.txt file in rtea directory. The file contains TE and other supporting information. 
+|Column|Description|
+|:---|:---|
+|chr|Chromosome name|
+|pos| Fusion breakpoint position on the chromosome
+|ori| Fusion direction on the chromosome (f, TE|gene; r, gene|TE)
+|class| TE class
+|seq| Proximal portion of fusion sequence
+|isPolyA| Whether it is a fusion with polyA sequence
+|posRepFamily| Repeat masked repeat family on the breakpoint position
+|posRep| Repeat maskec repeat element on the breakpoint position
+|TEfamily| TE family with highest alingment score when fusion sequence is aligned with consensus TE sequence.
+|TEscore| Alignment score of fusion sequence with the consensus TE sequence.
+|TEside| Fusion direction on the consensus TE sequence (5, TE|gene; 3, gene|TE)
+|TEbreak| Fusion breakpoint position on the consensus TE sequence.
+|depth| Number of RNA-seq reads on the breakpoint position
+|matchCnt| Number of fusion supporting RNA-seq reads.
+|polyAcnt| Number of polyA reads
+|baseQual| Median base quality of supporting reads.
+|lowMapQual| Number of supporting reads that has low mapping quality
+|mateDist| Minimum distance of mate reads
+|overhang| Distance of breakpoint from splice site
+|gap| Length of nearby intron
+|secondary| Proportion supporting reads that is from secondary alignment
+|nonspecificTE| Mean alignment score of supporting reads to consensus TE sequence
+|r1pstrand| Proportion of supporting reads that is from positive strand of chromosome
+|fusion_tx_id| Transcript ID of the fusion transcript
+|tx_support_exon| Number of read fragments spanning exonic region of the fusion transcript ID
+|tx_support_intron| Number of read gaps matching the fusion transcript ID
+|strand| Strand of fusion transcript
+|pos_type| Genomic region of breakpoint
+|polyTE| Known non-reference TE on the breakpoint position
+|hardstart| Start position of nearby reference genome where fusion sequence came from
+|hardend| Start position of nearby reference genome where fusion sequence came from
+|hardTE| Repeat masked TE subfamily of nearby reference genome where fusion sequence came from
+|hardDist| Distance from fusion breakpoint to nearby reference genome where fusion sequence came from
+|fusion_type| Type of TE fusion
+|fusion_tx_biotype| Biotype of fusion transcript
+|fusion_gene_id| Gene ID of fusion transcript
+|fusion_gene_name| Gene symbol of fusion transcript
+|Filter| Filter reason of low confidence fusion
+
+
+# License and Contact
