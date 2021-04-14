@@ -114,8 +114,8 @@ rnatea_pipeline_noscallop_from_bam \
 ```
 
 
-# rTEA output file
-After running rTEA, an user can obtain <SAMPLE_NAME>.rtea.txt file in rtea directory. The file contains TE and other supporting information. 
+# Output file
+After running rTEA, an user can obtain <SAMPLE_NAME>.rtea.txt file in rtea directory. The file contains TE and other supporting information.
 |Column|Description|
 |:---|:---|
 |chr|Chromosome name|
@@ -158,4 +158,5 @@ After running rTEA, an user can obtain <SAMPLE_NAME>.rtea.txt file in rtea direc
 |Filter| Filter reason of low confidence fusion
 
 
-# License and Contact
+# License
+rTEA is released under the MIT license.
