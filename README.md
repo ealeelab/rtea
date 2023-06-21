@@ -92,7 +92,7 @@ singularity shell -B ${GENOME_SNP_TRAN_DIR}:/app/rtea/hg38/genome_snp_tran \
 rTEA support two kinds of input files; paired fastq and bam file.
 For the paired fastq file, use following command;
 ```
-rtea_pipeline_without_scallop \
+rtea \
         ${R1.fq}.gz \
         ${R2.fq}.gz \
         $SAMPLE_NAME \
@@ -102,17 +102,6 @@ rtea_pipeline_without_scallop \
         hg38 \
         resume
 ```
-
-For the bam file, an user can use rTEA with more simple parametes.
-```
-rnatea_pipeline_noscallop_from_bam \
-			${SAMPLE.bam} \
-			$SAMPLE_NAME \
-			$GENOME_SNP_TRAN_DIR \
-			$NUMBER_OF_CORES \
-			$OUT_DIR
-```
-
 
 # Output file
 After running rTEA, an user can obtain <SAMPLE_NAME>.rtea.txt file in rtea directory. The file contains TE and other supporting information.
