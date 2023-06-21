@@ -1,7 +1,7 @@
 # rTEA (RNA Transposable Element Analyzer)
 
 A computational method for any TE-fusion transcripts.
-* Citation : Boram Lee, Junseok Park, Yoonju Choi, Woongyang Park and Alice Eunjung Lee. [Landscape of transposon-fusion RNA in human tissues and cancers](https://). bioRxiv. 2021 Apr; https://doi.org/xxx
+* Citation : Boram Lee, Junseok Park, Yoonju Choi, Woongyang Park and Alice Eunjung Lee. Pan-cancer analysis reveals multifaceted roles of retrotransposon-fusion RNAs
 
 ---
 
