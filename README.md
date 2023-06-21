@@ -92,7 +92,7 @@ singularity shell -B ${GENOME_SNP_TRAN_DIR}:/app/rtea/hg38/genome_snp_tran \
 rTEA support paired fastq.
 For the paired fastq file, use following command;
 ```
-rtea \
+rtea.sh \
         ${R1.fq}.gz \
         ${R2.fq}.gz \
         $SAMPLE_NAME \
