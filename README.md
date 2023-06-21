@@ -89,7 +89,7 @@ singularity shell -B ${GENOME_SNP_TRAN_DIR}:/app/rtea/hg38/genome_snp_tran \
     rTEA.simg
 ```
 
-rTEA support two kinds of input files; paired fastq and bam file.
+rTEA support paired fastq.
 For the paired fastq file, use following command;
 ```
 rtea \
