@@ -1,9 +1,7 @@
 # rTEA (RNA Transposable Element Analyzer)
 
 A computational method for any TE-fusion transcripts.
-* Citation: Boram Lee*, Junseok Park*, Adam Voshall, Eduardo Maury, Yeeok Kang, Yoen Jeong Kim, Jin-Young Lee, Hye-Ran Shim, Hyo-Ju Kim, Jung-Woo Lee, Min-Hyeok Jung, Si-Cho Kim, Hoang Bao Khanh Chu, Da-Won Kim, Minjeong Kim, Eun-Ji Choi, Ok Kyung Hwang,Ho Won Lee,Kyungsoo Ha,Jung Kyoon Choi, Yongjoon Kim, Yoonjoo Choi+, Woong-Yang Park+, and Eunjung Alice Lee+., Pan-cancer analysis reveals multifaceted roles of retrotransposon-fusion RNAs, Cancer Discovery (in review)
-
-Pan-cancer analysis reveals multifaceted roles of retrotransposon-fusion RNAs
+* Citation: Boram Lee*, Junseok Park*, Adam Voshall, Eduardo Maury, Yeeok Kang, Yoen Jeong Kim, Jin-Young Lee, Hye-Ran Shim, Hyo-Ju Kim, Jung-Woo Lee, Min-Hyeok Jung, Si-Cho Kim, Hoang Bao Khanh Chu, Da-Won Kim, Minjeong Kim, Eun-Ji Choi, Ok Kyung Hwang,Ho Won Lee,Kyungsoo Ha,Jung Kyoon Choi, Yongjoon Kim, Yoonjoo Choi+, Woong-Yang Park+, and Eunjung Alice Lee+., [Pan-cancer analysis reveals multifaceted roles of retrotransposon-fusion RNAs](https://www.biorxiv.org/content/10.1101/2023.10.16.562422v1.abstract), Nature Communications (in review)
 
 ---
 
