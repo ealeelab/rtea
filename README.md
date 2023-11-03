@@ -99,7 +99,7 @@ singularity shell -B ${GENOME_SNP_TRAN_DIR}:/app/rtea/hg38/genome_snp_tran \
     rTea.simg
 ```
 
-rTea support paired fastq.
+rTea support paired fastq and bam file as input.
 For the paired fastq file, use following command;
 ```bash
 rtea.sh \
@@ -111,6 +111,16 @@ rtea.sh \
         $OUT_DIR \
         hg38 \
         resume
+```
+For the bam file, use following command;
+```bash
+rnatea_pipeline_noscallop_from_bam ' \
+        ${BAM} + \
+        $SAMPLE_NAME \
+        $GENOME_SNP_TRAN_DIR \
+        $NUMBER_OF_CORES \
+        $OUT_DIR \
+        hg38
 ```
 
 # Output file
