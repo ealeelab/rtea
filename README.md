@@ -1,9 +1,8 @@
 # rTea (RNA Transposable Element Analyzer)
 
+``rTea`` is a computational method to detect transposon-fusion RNA.
 ![rTea](images/ToolImage.png "rTea")
 
-
-``rTea`` is a computational method to detect transposon-fusion RNA.
 * Citation:[Pan-cancer analysis reveals multifaceted roles of retrotransposon-fusion RNAs](https://www.biorxiv.org/content/10.1101/2023.10.16.562422v1.abstract)
 
 ---
@@ -11,6 +10,8 @@
 # Overview
 we developed rTea to detect TE-fusion transcripts from short-read RNA-seq data. We utilized multiple features from aligned reads, such as base quality of clipped sequences, percentage of multi-mapped reads, and matching score of reads to TE sequences to filter out false positives caused by nonspecifically mapped reads.
 
+# Demo and result files
+Users can explore the capabilities of rTea by running a demo pipeline that processes text data and can obtain the raw results of the manuscript from [https://gitlab.aleelab.net/junseokpark/rtea-results](https://gitlab.aleelab.net/junseokpark/rtea-results)
 
 # Installation
 rTea is running on Linux based OS with prerequisite software. Here is the software you should install before you start to use rTea.
@@ -151,9 +152,6 @@ After running rTea, an user can obtain <SAMPLE_NAME>.rtea.txt file in rtea direc
 |fusion_gene_id| Gene ID of fusion transcript
 |fusion_gene_name| Gene symbol of fusion transcript
 |Filter| Filter reason of low confidence fusion
-
-# Demo and result files
-Users can explore the capabilities of rTea by running a demo pipeline that processes text data and can obtain the raw results of the manuscript from [https://gitlab.aleelab.net/junseokpark/rtea-results](https://gitlab.aleelab.net/junseokpark/rtea-results)
 
 # License
 rTea is released under the MIT license.
