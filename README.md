@@ -114,7 +114,7 @@ rtea.sh \
 ```
 For the bam file, use following command;
 ```bash
-rnatea_pipeline_noscallop_from_bam \
+rnatea_pipeline_from_bam \
         ${BAM} + \
         $SAMPLE_NAME \
         $GENOME_SNP_TRAN_DIR \
