@@ -1,15 +1,15 @@
-# rTEA (RNA Transposable Element Analyzer)
+# rTea (RNA Transposable Element Analyzer)
 
-A computational method for any TE-fusion transcripts.
-* Citation: Boram Lee*, Junseok Park*, Adam Voshall, Eduardo Maury, Yeeok Kang, Yoen Jeong Kim, Jin-Young Lee, Hye-Ran Shim, Hyo-Ju Kim, Jung-Woo Lee, Min-Hyeok Jung, Si-Cho Kim, Hoang Bao Khanh Chu, Da-Won Kim, Minjeong Kim, Eun-Ji Choi, Ok Kyung Hwang,Ho Won Lee,Kyungsoo Ha,Jung Kyoon Choi, Yongjoon Kim, Yoonjoo Choi+, Woong-Yang Park+, and Eunjung Alice Lee+., [Pan-cancer analysis reveals multifaceted roles of retrotransposon-fusion RNAs](https://www.biorxiv.org/content/10.1101/2023.10.16.562422v1.abstract), Nature Communications (in review)
+A computational method to detect transposon-fusion RNA.
+* Citation:[Pan-cancer analysis reveals multifaceted roles of retrotransposon-fusion RNAs](https://www.biorxiv.org/content/10.1101/2023.10.16.562422v1.abstract)
 
 ---
 
 
 # Installation
-rTEA is running on Linux based OS with prerequisite softwares. Here is the software you should install before you start to use rTEA.
+rTea is running on Linux based OS with prerequisite software. Here is the software you should install before you start to use rTea.
 
-* System softwares for Ubuntu 18.04 LTS
+* System software for Ubuntu 18.04 LTS
 ```
 apt-get update && apt-get install -y \
     cmake \
@@ -23,14 +23,14 @@ apt-get update && apt-get install -y \
     iputils-ping
 ```
 
-* Dependency tools and ENV variables are needed too before installing rTEA.
+* Dependency tools and ENV variables are needed too before installing rTea.
 
   * [fastp]( http://opengene.org/fastp/fastp)
-  * [HISAT2](http://opengene.org/fastp/fastp) (>= 2.1.0)
-  * [samtools](https://github.com/samtools/samtools/releases/download/1.9/samtools-1.9.tar.bz2) (>= 1.9)
-  * [HTSlib](https://github.com/samtools/htslib/releases/download/1.9/htslib-1.9.tar.bz2) (>= 1.9)
-  * [Scallop](https://github.com/Kingsford-Group/scallop/releases/download/v0.10.4/scallop-0.10.4_linux_x86_64.tar.gz) (>=0.10.4)
-  * [bamtools](https://github.com/pezmaster31/bamtools/archive/v2.5.1.tar.gz) (>=2.5.1)
+  * [HISAT2](http://opengene.org/fastp/fastp) (>= v2.1.0)
+  * [samtools](https://github.com/samtools/samtools/releases/download/1.9/samtools-1.9.tar.bz2) (>= v1.9)
+  * [HTSlib](https://github.com/samtools/htslib/releases/download/1.9/htslib-1.9.tar.bz2) (>= v1.9)
+  * [Scallop](https://github.com/Kingsford-Group/scallop/releases/download/v0.10.4/scallop-0.10.4_linux_x86_64.tar.gz) (>= v0.10.4)
+  * [bamtools](https://github.com/pezmaster31/bamtools/archive/v2.5.1.tar.gz) (>= v2.5.1)
   ```
   # Bamtools environment
   # BAMTOOL_HOME is installed directory
@@ -63,33 +63,33 @@ R -e "BiocManager::install(c( \
 
 
 ## Use Docker for Installation
-Build docker file and running the rTEA in the docker container
+Build docker file and running the rTea in the docker container
 ```
-DOCKER_BUILDKIT=1 docker build -t rTEA .
+DOCKER_BUILDKIT=1 docker build -t rTea .
 ```
 
 ## Use Singularity for Installation
-After creating docker image for rTEA, convert the image to singularity.
+After creating docker image for rTea, convert the image to singularity.
 
 ```
-docker save -o rTEA.tar rTEA:latest
-singularity build rTEA.simg docker-archive://rTEA.tar
+docker save -o rTea.tar rTea:latest
+singularity build rTea.simg docker-archive://rTea.tar
 ```
 
 ---
 
-# Running rTEA
-If running environment is Docker, run docker image for running rTEA.
+# Running rTea
+If running environment is Docker, run docker image for running rTea.
 ```
-docker exec -it -v ${GENOME_SNP_TRAN_DIR}:/app/rtea/hg38/genome_snp_tran rTEA bash
+docker exec -it -v ${GENOME_SNP_TRAN_DIR}:/app/rtea/hg38/genome_snp_tran rTea bash
 ```
-If running environment is Singularity, execute Singularity image for running rTEA.
+If running environment is Singularity, execute Singularity image for running rTea.
 ```
 singularity shell -B ${GENOME_SNP_TRAN_DIR}:/app/rtea/hg38/genome_snp_tran \
-    rTEA.simg
+    rTea.simg
 ```
 
-rTEA support paired fastq.
+rTea support paired fastq.
 For the paired fastq file, use following command;
 ```
 rtea.sh \
@@ -104,7 +104,7 @@ rtea.sh \
 ```
 
 # Output file
-After running rTEA, an user can obtain <SAMPLE_NAME>.rtea.txt file in rtea directory. The file contains TE and other supporting information.
+After running rTea, an user can obtain <SAMPLE_NAME>.rtea.txt file in rtea directory. The file contains TE and other supporting information.
 |Column|Description|
 |:---|:---|
 |chr|Chromosome name|
@@ -148,4 +148,4 @@ After running rTEA, an user can obtain <SAMPLE_NAME>.rtea.txt file in rtea direc
 
 
 # License
-rTEA is released under the MIT license.
+rTea is released under the MIT license.
