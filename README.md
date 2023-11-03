@@ -169,6 +169,6 @@ After running rTea, a user can obtain <SAMPLE_NAME>.rtea.txt file in _rtea_ dire
 |fusion_gene_name| Gene symbol of fusion transcript
 |Filter| Filter reason of low confidence fusion
 
-# License
+# Licenses
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![License: CC BY-NC 4.0](https://img.shields.io/badge/License-CC_BY--NC_4.0-lightgrey.svg)](https://creativecommons.org/licenses/by-nc/4.0/)
