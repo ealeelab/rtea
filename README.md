@@ -124,7 +124,7 @@ rnatea_pipeline_from_bam \
 ```
 
 # Output file
-After running rTea, a user can obtain <SAMPLE_NAME>.rtea.txt file in rtea directory. The file contains TE and other supporting information.
+After running rTea, a user can obtain <SAMPLE_NAME>.rtea.txt file in _rtea_ directory. The file contains TE and other supporting information.
 |Column|Description|
 |:---|:---|
 |chr|Chromosome name|
