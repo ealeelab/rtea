@@ -99,8 +99,8 @@ singularity shell -B ${GENOME_SNP_TRAN_DIR}:/app/rtea/hg38/genome_snp_tran \
     rTea.simg
 ```
 
-rTea support paired fastq and bam file as input.
-For the paired fastq file, use following command;
+rTea supports paired-end fastq files and a bam file as input.
+For fastq file input, use the following command;
 ```bash
 rtea.sh \
         ${R1.fq}.gz \
@@ -112,7 +112,7 @@ rtea.sh \
         hg38 \
         resume
 ```
-For the bam file, use following command;
+For a bam file input, use the following command;
 ```bash
 rnatea_pipeline_from_bam \
         ${BAM} + \
@@ -124,7 +124,7 @@ rnatea_pipeline_from_bam \
 ```
 
 # Output file
-After running rTea, an user can obtain <SAMPLE_NAME>.rtea.txt file in rtea directory. The file contains TE and other supporting information.
+After running rTea, a user can obtain <SAMPLE_NAME>.rtea.txt file in rtea directory. The file contains TE and other supporting information.
 |Column|Description|
 |:---|:---|
 |chr|Chromosome name|
