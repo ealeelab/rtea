@@ -1,3 +1,5 @@
+[![R](https://img.shields.io/badge/3.6.3-3776AB?style=flat&logo=R)](https://cran.r-project.org/bin/windows/base/old/3.6.3/)
+
 # rTea (RNA Transposable Element Analyzer)
 
 ``rTea`` is a computational method to detect transposon-fusion RNA.
