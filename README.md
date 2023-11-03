@@ -1,4 +1,4 @@
-[![R](https://img.shields.io/badge/3.6.3-3776AB?style=flat&logo=R)](https://cran.r-project.org/bin/windows/base/old/3.6.3/)
+[![R](https://img.shields.io/badge/R-3.6.3-3776AB?style=flat&logo=R&logoColor=276DC3)](https://cran.r-project.org/bin/windows/base/old/3.6.3/)
 
 # rTea (RNA Transposable Element Analyzer)
 
