@@ -14,7 +14,7 @@
 we developed rTea to detect TE-fusion transcripts from short-read RNA-seq data. We utilized multiple features from aligned reads, such as base quality of clipped sequences, percentage of multi-mapped reads, and matching score of reads to TE sequences to filter out false positives caused by nonspecifically mapped reads.
 
 # Demo and result files
-Users can explore the capabilities of rTea by running a demo pipeline that processes text data and can obtain the raw results of the manuscript from [https://gitlab.aleelab.net/junseokpark/rtea-results](https://gitlab.aleelab.net/junseokpark/rtea-results)
+Users can try rTea on a demo data set and can check the output from [https://gitlab.aleelab.net/junseokpark/rtea-results](https://gitlab.aleelab.net/junseokpark/rtea-results)
 
 # Installation
 rTea is running on Linux based OS with prerequisite software. Here is the software you should install before you start to use rTea.
