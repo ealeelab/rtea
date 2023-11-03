@@ -1,6 +1,7 @@
 [![ubuntu](https://img.shields.io/badge/ubuntu-18.04_LTS-E95420?style=flat&logo=ubuntu)](https://releases.ubuntu.com/18.04/)
 [![R](https://img.shields.io/badge/R-v3.6.3-3776AB?style=flat&logo=R&logoColor=276DC3)](https://cran.r-project.org/bin/windows/base/old/3.6.3/)
 [![Docker](https://img.shields.io/badge/Docker-Community_20.10.11-2496ED?style=flat&logo=docker)](https://docs.docker.com/engine/release-notes/20.10/)
+[![GCP](https://img.shields.io/badge/Google%20Cloud-kubernetes-4285F4?style=flat&logo=googlecloud)](https://cloud.google.com/?hl=en)
 [![bioRxiv](https://img.shields.io/badge/bioRxiv-2023.10.16.562422-E2001A?style=flat&logo=internetarchive)](https://www.biorxiv.org/content/10.1101/2023.10.16.562422v1.abstract)
 
 # rTea (RNA Transposable Element Analyzer)
