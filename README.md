@@ -10,7 +10,7 @@ A computational method to detect transposon-fusion RNA.
 rTea is running on Linux based OS with prerequisite software. Here is the software you should install before you start to use rTea.
 
 * System software for Ubuntu 18.04 LTS
-```
+```bash
 apt-get update && apt-get install -y \
     cmake \
     libxml2-dev \
@@ -23,7 +23,7 @@ apt-get update && apt-get install -y \
     iputils-ping
 ```
 
-* Dependency tools and ENV variables are needed too before installing rTea.
+* Prerequisite software and ENV variables are needed too before installing rTea.
 
   * [fastp]( http://opengene.org/fastp/fastp)
   * [HISAT2](http://opengene.org/fastp/fastp) (>= v2.1.0)
@@ -31,7 +31,7 @@ apt-get update && apt-get install -y \
   * [HTSlib](https://github.com/samtools/htslib/releases/download/1.9/htslib-1.9.tar.bz2) (>= v1.9)
   * [Scallop](https://github.com/Kingsford-Group/scallop/releases/download/v0.10.4/scallop-0.10.4_linux_x86_64.tar.gz) (>= v0.10.4)
   * [bamtools](https://github.com/pezmaster31/bamtools/archive/v2.5.1.tar.gz) (>= v2.5.1)
-  ```
+  ```bash
   # Bamtools environment
   # BAMTOOL_HOME is installed directory
   PKG_CXXFLAGS="-I$BAMTOOL_HOME/include/bamtools"
@@ -40,7 +40,7 @@ apt-get update && apt-get install -y \
   * [bwa](https://github.com/lh3/bwa/releases/download/v0.7.17/bwa-0.7.17.tar.bz2) (>=0.7.17)
 
 * [R](https://cran.r-project.org/) (==3.6.2) and necessary R softwares should be installed.
-```
+```R
 R -e "install.packages('XML', repos = 'http://www.omegahat.net/R')"
 R -e "install.packages(c( \
        'magrittr', \
@@ -64,14 +64,14 @@ R -e "BiocManager::install(c( \
 
 ## Use Docker for Installation
 Build docker file and running the rTea in the docker container
-```
+```bash
 DOCKER_BUILDKIT=1 docker build -t rTea .
 ```
 
 ## Use Singularity for Installation
 After creating docker image for rTea, convert the image to singularity.
 
-```
+```bash
 docker save -o rTea.tar rTea:latest
 singularity build rTea.simg docker-archive://rTea.tar
 ```
@@ -80,18 +80,18 @@ singularity build rTea.simg docker-archive://rTea.tar
 
 # Running rTea
 If running environment is Docker, run docker image for running rTea.
-```
+```bash
 docker exec -it -v ${GENOME_SNP_TRAN_DIR}:/app/rtea/hg38/genome_snp_tran rTea bash
 ```
 If running environment is Singularity, execute Singularity image for running rTea.
-```
+```bash
 singularity shell -B ${GENOME_SNP_TRAN_DIR}:/app/rtea/hg38/genome_snp_tran \
     rTea.simg
 ```
 
 rTea support paired fastq.
 For the paired fastq file, use following command;
-```
+```bash
 rtea.sh \
         ${R1.fq}.gz \
         ${R2.fq}.gz \
