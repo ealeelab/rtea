@@ -17,10 +17,10 @@
 we developed rTea to detect TE-fusion transcripts from short-read RNA-seq data. We utilized multiple features from aligned reads, such as base quality of clipped sequences, percentage of multi-mapped reads, and matching score of reads to TE sequences to filter out false positives caused by nonspecifically mapped reads.
 
 # Demo and result files
-Users can try rTea on a demo data set and can check the output from [https://gitlab.aleelab.net/junseokpark/rtea-results](https://gitlab.aleelab.net/junseokpark/rtea-results)
+Users can try rTea on a demo data set and can check the output at  [https://gitlab.aleelab.net/junseokpark/rtea-results](https://gitlab.aleelab.net/junseokpark/rtea-results)
 
 # Installation
-rTea is running on Linux based OS with prerequisite software. Here is the software you should install before you start to use rTea.
+"rTea runs on a Linux-based operating system with certain prerequisite software. Here is a list of the software you should install before you start using rTea.
 
 * System software for Ubuntu 18.04 LTS
 ```bash
@@ -36,7 +36,7 @@ apt-get update && apt-get install -y \
     iputils-ping
 ```
 
-* Prerequisite software and ENV variables are needed too before installing rTea.
+* Before installing rTea, you'll also need to set up the prerequisite software and environment variables (ENV).
 
   * [fastp]( http://opengene.org/fastp/fastp)
   * [HISAT2](http://opengene.org/fastp/fastp) (>= v2.1.0)
@@ -52,7 +52,7 @@ apt-get update && apt-get install -y \
   ```
   * [bwa](https://github.com/lh3/bwa/releases/download/v0.7.17/bwa-0.7.17.tar.bz2) (>=0.7.17)
 
-* [R](https://cran.r-project.org/) (==3.6.2) and necessary R softwares should be installed.
+* [R](https://cran.r-project.org/) (==3.6.2) and the necessary R software should be installed.
 ```R
 R -e "install.packages('XML', repos = 'http://www.omegahat.net/R')"
 R -e "install.packages(c( \
@@ -76,13 +76,13 @@ R -e "BiocManager::install(c( \
 
 
 ## Use Docker for Installation
-Build docker file and running the rTea in the docker container
+Build a Docker file and run rTea in the Docker container.
 ```bash
 DOCKER_BUILDKIT=1 docker build -t rTea .
 ```
 
 ## Use Singularity for Installation
-After creating docker image for rTea, convert the image to singularity.
+After creating a Docker image for rTea, convert it to Singularity.
 
 ```bash
 docker save -o rTea.tar rTea:latest
@@ -92,18 +92,18 @@ singularity build rTea.simg docker-archive://rTea.tar
 ---
 
 # Running rTea
-If running environment is Docker, run docker image for running rTea.
+If you are using Docker as your runtime environment, run the Docker image to execute rTea.
 ```bash
 docker exec -it -v ${GENOME_SNP_TRAN_DIR}:/app/rtea/hg38/genome_snp_tran rTea bash
 ```
-If running environment is Singularity, execute Singularity image for running rTea.
+If the runtime environment is Singularity, execute the Singularity image to run rTea.
 ```bash
 singularity shell -B ${GENOME_SNP_TRAN_DIR}:/app/rtea/hg38/genome_snp_tran \
     rTea.simg
 ```
 
-rTea supports paired-end fastq files and a bam file as input.
-For fastq file input, use the following command;
+rTea supports paired-end FASTQ files and a BAM file as input.
+For FASTQ file input, use the following command:
 ```bash
 rtea.sh \
         ${R1.fq}.gz \
@@ -115,7 +115,7 @@ rtea.sh \
         hg38 \
         resume
 ```
-For a bam file input, use the following command;
+For BAM file input, please use the following command:
 ```bash
 rnatea_pipeline_from_bam \
         ${BAM} + \
@@ -127,7 +127,7 @@ rnatea_pipeline_from_bam \
 ```
 
 # Output file
-After running rTea, a user can obtain <SAMPLE_NAME>.rtea.txt file in _rtea_ directory. The file contains TE and other supporting information.
+After running rTea, the user can find a <SAMPLE_NAME>.rtea.txt file in the _rtea_ directory, which contains information about TEs and other supporting data.
 |Column|Description|
 |:---|:---|
 |chr|Chromosome name|
