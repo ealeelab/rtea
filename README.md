@@ -4,23 +4,23 @@
 [![GCP](https://img.shields.io/badge/Google%20Cloud-kubernetes-4285F4?style=flat&logo=googlecloud)](https://cloud.google.com/?hl=en)
 [![bioRxiv](https://img.shields.io/badge/bioRxiv-2023.10.16.562422-E2001A?style=flat&logo=internetarchive)](https://www.biorxiv.org/content/10.1101/2023.10.16.562422v1.abstract)
 
-# rTea (RNA Transposable Element Analyzer)
+# ``rTea`` (RNA Transposable Element Analyzer)
 
 ``rTea`` is a computational method to detect transposon-fusion RNA.
-![rTea](images/ToolImage.png "rTea")
+![rTea](images/ToolImage.png "``rTea``")
 
 * Citation:&nbsp;[Pan-cancer analysis reveals multifaceted roles of retrotransposon-fusion RNAs](https://www.biorxiv.org/content/10.1101/2023.10.16.562422v1.abstract)
 
 ---
 
 # Overview
-we developed rTea to detect TE-fusion transcripts from short-read RNA-seq data. We utilized multiple features from aligned reads, such as base quality of clipped sequences, percentage of multi-mapped reads, and matching score of reads to TE sequences to filter out false positives caused by nonspecifically mapped reads.
+we developed ``rTea`` to detect TE-fusion transcripts from short-read RNA-seq data. We utilized multiple features from aligned reads, such as base quality of clipped sequences, percentage of multi-mapped reads, and matching score of reads to TE sequences to filter out false positives caused by nonspecifically mapped reads.
 
 # Demo and result files
-Users can try rTea on a demo data set and can check the output at  [https://gitlab.aleelab.net/junseokpark/rtea-results](https://gitlab.aleelab.net/junseokpark/rtea-results)
+Users can try ``rTea`` on a demo data set and can check the output at  [https://gitlab.aleelab.net/junseokpark/rTea-results](https://gitlab.aleelab.net/junseokpark/``rTea``-results)
 
 # Installation
-rTea runs on a Linux-based operating system with certain prerequisite software. Here is a list of the software you should install before you start using rTea.
+``rTea`` runs on a Linux-based operating system with certain prerequisite software. Here is a list of the software you should install before you start using ``rTea``.
 
 * System software for Ubuntu 18.04 LTS
 ```bash
@@ -36,7 +36,7 @@ apt-get update && apt-get install -y \
     iputils-ping
 ```
 
-* Before installing rTea, you'll also need to set up the prerequisite software and environment variables (ENV).
+* Before installing ``rTea``, you'll also need to set up the prerequisite software and environment variables (ENV).
 
   * [fastp]( http://opengene.org/fastp/fastp)
   * [HISAT2](http://opengene.org/fastp/fastp) (>= v2.1.0)
@@ -76,13 +76,13 @@ R -e "BiocManager::install(c( \
 
 
 ## Use Docker for Installation
-Build a Docker file and run rTea in the Docker container.
+Build a Docker file and run ``rTea`` in the Docker container.
 ```bash
 DOCKER_BUILDKIT=1 docker build -t rTea .
 ```
 
 ## Use Singularity for Installation
-After creating a Docker image for rTea, convert it to Singularity.
+After creating a Docker image for ``rTea``, convert it to Singularity.
 
 ```bash
 docker save -o rTea.tar rTea:latest
@@ -91,21 +91,21 @@ singularity build rTea.simg docker-archive://rTea.tar
 
 ---
 
-# Running rTea
-If you are using Docker as your runtime environment, run the Docker image to execute rTea.
+# Running ``rTea``
+If you are using Docker as your runtime environment, run the Docker image to execute ``rTea``.
 ```bash
-docker exec -it -v ${GENOME_SNP_TRAN_DIR}:/app/rtea/hg38/genome_snp_tran rTea bash
+docker exec -it -v ${GENOME_SNP_TRAN_DIR}:/app/rTea/hg38/genome_snp_tran rTea bash
 ```
-If the runtime environment is Singularity, execute the Singularity image to run rTea.
+If the runtime environment is Singularity, execute the Singularity image to run ``rTea``.
 ```bash
-singularity shell -B ${GENOME_SNP_TRAN_DIR}:/app/rtea/hg38/genome_snp_tran \
+singularity shell -B ${GENOME_SNP_TRAN_DIR}:/app/rTea/hg38/genome_snp_tran \
     rTea.simg
 ```
 
-rTea supports paired-end FASTQ files and a BAM file as input.
+``rTea`` supports paired-end FASTQ files and a BAM file as input.
 For FASTQ file input, use the following command:
 ```bash
-rtea.sh \
+rTea.sh \
         ${R1.fq}.gz \
         ${R2.fq}.gz \
         $SAMPLE_NAME \
@@ -127,7 +127,7 @@ rnatea_pipeline_from_bam \
 ```
 
 # Output file
-After running rTea, the user can find a <SAMPLE_NAME>.rtea.txt file in the _rtea_ directory, which contains information about TEs and other supporting data.
+After running ``rTea``, the user can find a <SAMPLE_NAME>.rTea.txt file in the _rTea_ directory, which contains information about TEs and other supporting data.
 |Column|Description|
 |:---|:---|
 |chr|Chromosome name|
