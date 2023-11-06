@@ -20,7 +20,7 @@ we developed rTea to detect TE-fusion transcripts from short-read RNA-seq data. 
 Users can try rTea on a demo data set and can check the output at  [https://gitlab.aleelab.net/junseokpark/rtea-results](https://gitlab.aleelab.net/junseokpark/rtea-results)
 
 # Installation
-"rTea runs on a Linux-based operating system with certain prerequisite software. Here is a list of the software you should install before you start using rTea.
+rTea runs on a Linux-based operating system with certain prerequisite software. Here is a list of the software you should install before you start using rTea.
 
 * System software for Ubuntu 18.04 LTS
 ```bash
