@@ -14,7 +14,7 @@
 ---
 
 # Overview
-we developed ``rTea`` to detect TE-fusion transcripts from short-read RNA-seq data. We utilized multiple features from aligned reads, such as base quality of clipped sequences, percentage of multi-mapped reads, and matching score of reads to TE sequences to filter out false positives caused by nonspecifically mapped reads.
+We developed ``rTea`` to detect TE-fusion transcripts from short-read RNA-seq data. We utilized multiple features from aligned reads, such as base quality of clipped sequences, percentage of multi-mapped reads, and matching score of reads to TE sequences to filter out false positives caused by nonspecifically mapped reads.
 
 # Demo and result files
 Users can try ``rTea`` on a demo data set and can check the output at  [https://gitlab.aleelab.net/junseokpark/rTea-results](https://gitlab.aleelab.net/junseokpark/``rTea``-results)
@@ -132,7 +132,7 @@ After running ``rTea``, the user can find a <SAMPLE_NAME>.rTea.txt file in the _
 |:---|:---|
 |chr|Chromosome name|
 |pos| Fusion breakpoint position on the chromosome
-|ori| Fusion direction on the chromosome (f, TE|gene; r, gene|TE)
+|ori| Fusion direction on the chromosome (f, TE\|gene; r, gene\|TE)
 |class| TE class
 |seq| Proximal portion of fusion sequence
 |isPolyA| Whether it is a fusion with polyA sequence
@@ -140,7 +140,7 @@ After running ``rTea``, the user can find a <SAMPLE_NAME>.rTea.txt file in the _
 |posRep| Repeat maskec repeat element on the breakpoint position
 |TEfamily| TE family with highest alingment score when fusion sequence is aligned with consensus TE sequence.
 |TEscore| Alignment score of fusion sequence with the consensus TE sequence.
-|TEside| Fusion direction on the consensus TE sequence (5, TE|gene; 3, gene|TE)
+|TEside| Fusion direction on the consensus TE sequence (5, TE\|gene; 3, gene\|TE)
 |TEbreak| Fusion breakpoint position on the consensus TE sequence.
 |depth| Number of RNA-seq reads on the breakpoint position
 |matchCnt| Number of fusion supporting RNA-seq reads.
