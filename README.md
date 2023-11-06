@@ -137,22 +137,22 @@ After running ``rTea``, the user can find a <SAMPLE_NAME>.rTea.txt file in the _
 |seq| Proximal portion of fusion sequence
 |isPolyA| Whether it is a fusion with polyA sequence
 |posRepFamily| Repeat masked repeat family on the breakpoint position
-|posRep| Repeat maskec repeat element on the breakpoint position
-|TEfamily| TE family with highest alingment score when fusion sequence is aligned with consensus TE sequence.
-|TEscore| Alignment score of fusion sequence with the consensus TE sequence.
+|posRep| Repeat masked repeat element on the breakpoint position
+|TEfamily| TE family with highest alignment score when fusion sequence is aligned with consensus TE sequence
+|TEscore| Alignment score of fusion sequence with the consensus TE sequence
 |TEside| Fusion direction on the consensus TE sequence (5, TE\|gene; 3, gene\|TE)
-|TEbreak| Fusion breakpoint position on the consensus TE sequence.
+|TEbreak| Fusion breakpoint position on the consensus TE sequence
 |depth| Number of RNA-seq reads on the breakpoint position
-|matchCnt| Number of fusion supporting RNA-seq reads.
+|matchCnt| Number of fusion-supporting RNA-seq reads
 |polyAcnt| Number of polyA reads
-|baseQual| Median base quality of supporting reads.
-|lowMapQual| Number of supporting reads that has low mapping quality
+|baseQual| Median base quality of supporting reads
+|lowMapQual| Number of supporting reads that have low mapping quality
 |mateDist| Minimum distance of mate reads
 |overhang| Distance of breakpoint from splice site
 |gap| Length of nearby intron
-|secondary| Proportion supporting reads that is from secondary alignment
+|secondary| Proportion of supporting reads that are from secondary alignment
 |nonspecificTE| Mean alignment score of supporting reads to consensus TE sequence
-|r1pstrand| Proportion of supporting reads that is from positive strand of chromosome
+|r1pstrand| Proportion of supporting reads that are from positive strand of chromosome
 |fusion_tx_id| Transcript ID of the fusion transcript
 |tx_support_exon| Number of read fragments spanning exonic region of the fusion transcript ID
 |tx_support_intron| Number of read gaps matching the fusion transcript ID
@@ -160,7 +160,7 @@ After running ``rTea``, the user can find a <SAMPLE_NAME>.rTea.txt file in the _
 |pos_type| Genomic region of breakpoint
 |polyTE| Known non-reference TE on the breakpoint position
 |hardstart| Start position of nearby reference genome where fusion sequence came from
-|hardend| Start position of nearby reference genome where fusion sequence came from
+|hardend| End position of nearby reference genome where fusion sequence came from
 |hardTE| Repeat masked TE subfamily of nearby reference genome where fusion sequence came from
 |hardDist| Distance from fusion breakpoint to nearby reference genome where fusion sequence came from
 |fusion_type| Type of TE fusion
