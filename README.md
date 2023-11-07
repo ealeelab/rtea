@@ -78,14 +78,14 @@ R -e "BiocManager::install(c( \
 ## Use Docker for Installation
 Build a Docker file and run ``rTea`` in the Docker container.
 ```bash
-DOCKER_BUILDKIT=1 docker build -t rTea .
+DOCKER_BUILDKIT=1 docker build -t rtea .
 ```
 
 ## Use Singularity for Installation
 After creating a Docker image for ``rTea``, convert it to Singularity.
 
 ```bash
-docker save -o rTea.tar rTea:latest
+docker save -o rTea.tar rtea:latest
 singularity build rTea.simg docker-archive://rTea.tar
 ```
 
