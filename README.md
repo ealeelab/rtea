@@ -94,7 +94,7 @@ singularity build rTea.simg docker-archive://rTea.tar
 # Running ``rTea``
 If you are using Docker as your runtime environment, run the Docker image to execute ``rTea``.
 ```bash
-docker exec -it -v ${GENOME_SNP_TRAN_DIR}:/app/rTea/hg38/genome_snp_tran rTea bash
+docker exec -it -v ${GENOME_SNP_TRAN_DIR}:/app/rTea/hg38/genome_snp_tran rtea bash
 ```
 If the runtime environment is Singularity, execute the Singularity image to run ``rTea``.
 ```bash
