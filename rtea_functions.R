@@ -198,7 +198,7 @@ filterSimpleSite <- function(ctea,
                     seqlengths(genome)[pastechr(chr)]
                     )
              ]
-  refrootseq <- ctea[, getSeq(genome, pastechr(chr), st, en)]
+  refrootseq <- ctea[, getSeq(genome, pastechr(chr), st, en)] %>% as.character
 
   Asite <- stringr::str_count(refrootseq, "A") / refAlength >= refPercentA
   Tsite <- stringr::str_count(refrootseq, "T") / refAlength >= refPercentA
