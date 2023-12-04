@@ -176,4 +176,5 @@ After running ``rTea``, the user can find a <SAMPLE_NAME>.rTea.txt file in the _
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
 
 # Contacts
-Email [Junseok Park](mailto:junseok.park@childrens.harvard.edu)
+[Junseok Park](mailto:junseok.park@childrens.harvard.edu)
+[Boram Lee](mailto:boram.lee@samsung.com)
