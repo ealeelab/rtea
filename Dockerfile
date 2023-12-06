@@ -1,15 +1,45 @@
 FROM r-base:3.6.2
-MAINTAINER Boram Lee
+MAINTAINER junseok.park@childrens.harvard.edu
+
+WORKDIR /app
+
+RUN wget https://github.com/curl/curl/releases/download/curl-7_60_0/curl-7.60.0.tar.gz \
+    && tar -xzf /app/curl-7.60.0.tar.gz \
+    && cd curl-7.60.0 \
+    && ./configure --with-openssl \
+    && make \
+    && make install \
+    && cd /app \
+    && rm -r curl-7.60.0.tar.gz curl-7.60.0
+
+RUN wget --no-check-certificate https://www.gnupg.org/ftp/gcrypt/gnupg/gnupg-1.4.23.tar.gz \
+    && tar -xzf /app/gnupg-1.4.23.tar.gz \
+    && cd gnupg-1.4.23 \ 
+    && ./configure \
+    && make \
+    && make install \
+    && cd /app \
+    && rm -r gnupg-1.4.23.tar.gz gnupg-1.4.23 
+
+RUN apt-mark hold r-base
 
 ENV LD_LIBRARY_PATH=/usr/local/lib
+
+RUN gpg --keyserver keyserver.ubuntu.com --recv-keys 0E98404D386FA1D9 6ED0E7B82643E131
+RUN gpg --export --armor 0E98404D386FA1D9 | apt-key add - \
+    && gpg --export --armor 6ED0E7B82643E131 | apt-key add -
+
 RUN apt-get update && apt-get install -y \
     cmake \
     libxml2-dev \
     libcurl4-openssl-dev \
     libboost-dev \
     gawk \
-		libssl-dev
-WORKDIR /app
+    libssl-dev \
+    pigz \
+    htop \
+    iputils-ping
+
 
 # fastp
 RUN wget -P /usr/local/bin http://opengene.org/fastp/fastp \
