@@ -1,16 +1,3 @@
-# 190624 - not filtering inserted polyA tail (filterSimpleRepeat.ctea function)
-# 190814 - duplicate removal by read name
-# 190829 - TEcoordinate reference fasta update (L1, L1HS)
-# 190909 - considering R1 or R2 in duplicate removal
-# 191121 - considering only clipped length and mate position (not clipped sequence) in marking possible duplicate
-# 191121 - repeat location annotation bug fix (when family is NA then class is assinged)
-# 191127 - filter out normal polyA site
-# 191127 - flag low TEscore (cntFilter.ctea function)
-# 191129 - considering same clipped seq also as possible duplicate
-# 191204 - not filtering polyA when reading ctea file (readctea function)
-# 191223 - converted gtf files to rds files to reduce file size.
-# 200103 - before removing duplicate reads, filter out the reads of which start(ori == f) or end(ori == r) site is too far away.
-
 require(magrittr)
 require(data.table)
 library(parallel)
@@ -1038,6 +1025,44 @@ ungapPos.rtea <- function(rtea, overhang_cutoff = 5L) {
   ungappos[rover] <- rtea[rover, pos - gap]
   ungappos
 }
+
+calculateDepth.default <- function(bamfile, chr, pos, ori, width = 10L) {
+  samtoolsVer <- system("samtools --version", intern = T)
+  majorVer <- sub(".* ", "", samtoolsVer[1]) %>% sub("[.].*", "", .) %>% as.integer
+  minorVer <- sub(".* ", "", samtoolsVer[1]) %>% sub(".*[.]", "", .) %>% as.integer
+  
+  if(majorVer < 1 | minorVer < 10) {
+    stop("samtools version 1.10 or higher is required.")
+  }
+  
+  
+  region <- if(ori == "f") {
+    sprintf("%s:%d-%d", chr, pos, pos + width)
+  } else {
+    sprintf("%s:%d-%d", chr, pos - width - 1, pos - 1)
+  }
+  samtoolsCmd <- paste("samtools", "depth",
+                       "-Q", 1,
+                       "-g", 4095,
+                       "-a",
+                       bamfile,
+                       "-r", region)
+  posDepth <- fread(cmd = samtoolsCmd,
+                    col.names = c("chr", "pos", "depth"))
+  max(posDepth$depth)
+}
+
+calculateDepth.rtea <- function(rtea, bamfile, width = 10L, threads = getOption("mc.cores", detectCores())) {
+  ungappos <- ungapPos.rtea(rtea, 5L)
+  depths <- rtea[, mcmapply(calculateDepth.default, 
+                            chr, ungappos, ori,
+                            MoreArgs = list(bamfile = bamfile,
+                                            width = width),
+                            mc.cores = threads)]
+  rtea$depth <- depths
+  rtea
+}
+
 
 # unique.rtea <- function(rtea,
 #                         overhang_cutoff = 10L,
