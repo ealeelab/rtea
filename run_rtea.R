@@ -61,6 +61,8 @@ ctea <- fread(precntfile)
 
 rtea <- countClippedReads.ctea(ctea, bamfile, threads = threads)
 rtea <- rtea[trueCnt >= 3 | (isPolyA & polyAcnt >=3), ]
+rtea <- calculateDepth.rtea(rtea, bamfile)
+rtea[, VAF := matchCnt / depth]
 rtea <- annotate.ctea(rtea)
 rtea <- polyTElocation.ctea(rtea)
 rtea <- localHardClip(rtea, threads = threads)

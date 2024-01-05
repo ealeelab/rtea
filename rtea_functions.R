@@ -1027,15 +1027,6 @@ ungapPos.rtea <- function(rtea, overhang_cutoff = 5L) {
 }
 
 calculateDepth.default <- function(bamfile, chr, pos, ori, width = 10L) {
-  samtoolsVer <- system("samtools --version", intern = T)
-  majorVer <- sub(".* ", "", samtoolsVer[1]) %>% sub("[.].*", "", .) %>% as.integer
-  minorVer <- sub(".* ", "", samtoolsVer[1]) %>% sub(".*[.]", "", .) %>% as.integer
-  
-  if(majorVer < 1 | minorVer < 10) {
-    stop("samtools version 1.10 or higher is required.")
-  }
-  
-  
   region <- if(ori == "f") {
     sprintf("%s:%d-%d", chr, pos, pos + width)
   } else {
@@ -1053,6 +1044,13 @@ calculateDepth.default <- function(bamfile, chr, pos, ori, width = 10L) {
 }
 
 calculateDepth.rtea <- function(rtea, bamfile, width = 10L, threads = getOption("mc.cores", detectCores())) {
+  samtoolsVer <- system("samtools --version", intern = T)
+  majorVer <- sub(".* ", "", samtoolsVer[1]) %>% sub("[.].*", "", .) %>% as.integer
+  minorVer <- sub(".* ", "", samtoolsVer[1]) %>% sub(".*[.]", "", .) %>% as.integer
+  if(majorVer < 1 | minorVer < 10) {
+    stop("samtools version 1.10 or higher is required.")
+  }
+  
   ungappos <- ungapPos.rtea(rtea, 5L)
   depths <- rtea[, mcmapply(calculateDepth.default, 
                             chr, ungappos, ori,

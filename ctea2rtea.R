@@ -71,6 +71,8 @@ ctea[isPolyA == T, class := "PolyA"]
 ctea %<>% .[isPolyA | TEscore > 0, ]
 ctea %<>% countClippedReads.ctea(bamfile, threads = threads)
 rtea <- ctea[trueCnt >= 3 | (isPolyA & polyAcnt >=3), ]
+rtea %<>% calculateDepth.rtea(bamfile)
+rtea[, VAF := matchCnt / depth]
 rtea %<>% 
   annotate.ctea %>%
   polyTElocation.ctea %>%
