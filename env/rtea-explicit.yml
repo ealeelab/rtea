@@ -1,0 +1,20 @@
+name: rtea
+channels:
+  - conda-forge
+  - bioconda
+  - r
+  - defaults
+dependencies:
+  - python=3.9
+  - openssh
+  - ca-certificates
+  - openssl
+  - jupyter
+  - jupyterlab
+  - r-base==4.1.0
+  - certifi
+  - pandas
+  - tqdm
+  - jupyterlab-fonts
+  - pysam==0.18.0
+prefix: /home/ch219077/miniforge3/envs/rtea
