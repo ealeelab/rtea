@@ -1,17 +1,11 @@
 #!/usr/bin/env python
-from __future__ import annotations
-
 import pysam
-from concurrent.futures import ThreadPoolExecutor, as_completed
-import multiprocessing
+import concurrent.futures
 import os
 from datetime import datetime
 from tqdm import tqdm
-from tqdm.contrib.concurrent import process_map
-
-#import multiprocessing as mp
-
-from functools import partial
+#from tqdm.notebook import tqdm 
+import multiprocessing as mp
 import re
 import numpy as np
 import pandas as pd
@@ -29,12 +23,8 @@ def ungap_pos(row, overhang_cutoff=5):
         return row['pos']  
     
 
-# def calculate_depth_for_row(row, bamfile, width):
-#     return calculate_depth_default(bamfile, row["chr"], row["ungap_pos"], row["ori"], width)
-
-# def init(pbar_total):
-#     global pbar
-#     pbar = tqdm(total=pbar_total)
+def calculate_depth_for_row(row, bamfile, width):
+    return calculate_depth_default(bamfile, row["chr"], row["ungap_pos"], row["ori"], width)
 
 
 def calculate_depth_default(bamfile, chrom, pos, ori, width=10):
@@ -75,37 +65,6 @@ def calculate_depth_default(bamfile, chrom, pos, ori, width=10):
     return max_depth
 
 
-def calculate_depth_for_chunk(chunk, bamfile=None, width=None):
-    # result = chunk.apply(
-    #     lambda row: calculate_depth_default(bamfile, row["chr"], row["ungap_pos"], row["ori"], width),
-    #     #lambda row: calculate_depth_default(bamfile, row["chr"], row["ungap_pos"], row["ori"], pbar, width),
-    #     axis=1
-    # )
-    # if pbar:
-    #     pbar.update(1)
-
-    # return result
-
-    # return chunk.apply(
-    #     lambda row: calculate_depth_default(bamfile, row["chr"], row["ungap_pos"], row["ori"], width),
-    #     #lambda row: calculate_depth_default(bamfile, row["chr"], row["ungap_pos"], row["ori"], pbar, width),
-    #     axis=1
-    # )
-    process_id = multiprocessing.current_process().pid
-
-    # Use max and min, like minux max_cpu number
-    # How I can get the total multiprocessing.process IDs? 
-
-    with tqdm(total=len(chunk), desc=f"Processing Chunk PID:{process_id}") as pbar:  # Create a tqdm progress bar for each chunk
-        def calculate_depth_for_row(row):
-            nonlocal pbar
-            result = calculate_depth_default(bamfile, row["chr"], row["ungap_pos"], row["ori"], width)
-            pbar.update(1)  # Update the progress bar for each row
-            return result
-
-        return chunk.apply(calculate_depth_for_row, axis=1)
-    
-
 def calculate_depth_rtea(rtea, bamfile, width=10, cpus=None):
 
     rtea = pd.read_csv(rtea,sep="\t")
@@ -122,31 +81,47 @@ def calculate_depth_rtea(rtea, bamfile, width=10, cpus=None):
 
     # Function to apply calculate_depth_default to a chunk of the DataFrame
     # def calculate_depth_for_chunk(chunk, pbar):
+    def calculate_depth_for_chunk(chunk):
+        return chunk.apply(
+            lambda row: calculate_depth_default(bamfile, row["chr"], row["ungap_pos"], row["ori"], width),
+            #lambda row: calculate_depth_default(bamfile, row["chr"], row["ungap_pos"], row["ori"], pbar, width),
+            axis=1
+        )
 
 
     # Determine the number of elements per chunk
     # elements_per_chunk = len(rtea) // num_cpus
         
     # Split the DataFrame into chunks, handling the remainder
-
-    # Create a partial function with fixed arguments
-    partial_calculate_depth = partial(calculate_depth_for_chunk, bamfile=bamfile, width=width)
-
-
     chunks = np.array_split(rtea, num_cpus)
     
     
-    #with tqdm(total=len(rtea)) as pbar:
-    #with tqdm(total=len(chunks)) as pbar:
+    with tqdm(total=len(rtea)) as pbar:
     
-    with multiprocessing.Pool(processes=num_cpus) as pool:
-    #with multiprocessing.Pool(processes=num_cpus, initializer=init, initargs=(len(chunks),)) as pool:
-        
+        # Create a ThreadPoolExecutor
+        #with concurrent.futures.ThreadPoolExecutor(max_workers=num_cpus) as executor:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=num_cpus) as executor:
+            # Submit tasks and get futures
+            #futures = [executor.submit(calculate_depth_for_chunk, chunk) for _, chunk in rtea.groupby(rtea.index // (len(rtea) // num_cpus))]
+            futures = [executor.submit(calculate_depth_for_chunk, chunk) for chunk in chunks]
 
-        #results = list(process_map(partial_calculate_depth, chunks, pool=pool, pbar=main_pbar, desc="Processing", total=len(chunks)))
-        results = list(tqdm(pool.imap_unordered(partial_calculate_depth, chunks), total=len(chunks)))
+            # Wait for tasks to complete
+            #concurrent.futures.wait(futures)
 
-    depths = pd.concat(results, axis=0)
+            # Collect and concatenate results
+            #results = [future.result() for future in futures]
+
+            # for future in as_completed(futures):
+            #     pbar.updates(1)
+            #     yield future.result()
+
+            results = [future.result() or pbar.update(1) for future in as_completed(futures)]
+
+
+
+
+
+            depths = pd.concat(results, axis=0)
 
 
         # Assign the depths to the original DataFrame
