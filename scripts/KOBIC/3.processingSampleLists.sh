@@ -2,6 +2,7 @@
 
 # Specify the directory containing text files
 directory="/path/to/your/directory"
+programLocation=/home/aleelab/rtea
 
 # Check if the directory exists
 if [ -d "$directory" ]; then
@@ -12,6 +13,9 @@ if [ -d "$directory" ]; then
             # Perform actions on the text file, for example, print its content
             echo "Processing file: $file"
             cat "$file"  # Replace this with your actual processing logic
+
+            $programLocation/scripts/executeFromList.sh $file
+
         fi
     done
 else

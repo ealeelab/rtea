@@ -1,13 +1,26 @@
 #!/bin/bash
 
 # Specify the file containing paths
-file_path="/lab-share/Gene-Lee-e2/Public/share/projects/rTea/rtea-python/scripts/test.dirs"
+# Start Conda Env
 
-# Check if the file exists
-if [ ! -f "$file_path" ]; then
-    echo "Error: File '$file_path' not found."
+$CONDA_HOME=/home/aleelab/miniforge3
+. $CONDA_HOME/etc/profile.d/conda.sh
+
+# Check if the correct number of arguments is provided
+if [ "$#" -ne 1 ]; then
+    echo "Usage: $0 <file_path>"
     exit 1
 fi
+
+file_path="$1"
+
+# Check if the destination directory exists
+if [ ! -d "$file_path" ]; then
+    echo "Error: Directory '$file_path' not found."
+    exit 1
+fi
+
+#file_path="/lab-share/Gene-Lee-e2/Public/share/projects/rTea/rtea-python/scripts/test.dirs"
 
 # Use a while loop to iterate over each line in the file
 while IFS= read -r line; do
@@ -22,4 +35,7 @@ while IFS= read -r line; do
     echo "Sample Location: $full_line"
     echo "Sample Group: $sampleGroup"
     echo "Sample Name: $sampleName"
+
+    # Program Start
+
 done < "$file_path"

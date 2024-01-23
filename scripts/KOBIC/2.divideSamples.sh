@@ -1,6 +1,15 @@
 #!/bin/bash
 # Specify the input file
-input_file=“/path/to/your/input_file.txt”
+
+# Check if the correct number of arguments is provided
+if [ "$#" -ne 1 ]; then
+    echo "Usage: $0 <sample list>"
+    exit 1
+fi
+
+input_file="$1"
+
+
 # Check if the file exists
 if [ ! -f “$input_file” ]; then
     echo “Error: File ‘$input_file’ not found.”
