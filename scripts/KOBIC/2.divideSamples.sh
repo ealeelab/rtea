@@ -2,7 +2,7 @@
 # Specify the input file
 
 # Check if the correct number of arguments is provided
-output_file_prefix=tcga_
+output_file_prefix=copm_
 
 if [ "$#" -ne 1 ]; then
     echo "Usage: $0 <sample list>"
@@ -10,6 +10,7 @@ if [ "$#" -ne 1 ]; then
 fi
 
 input_file="$1"
+devide_num=15
 
 
 echo $input_file
@@ -22,8 +23,8 @@ fi
 
 # Calculate the number of lines per file
 total_lines=$(wc -l < $input_file)
-lines_per_file=$((total_lines / 20))
-remainder=$((total_lines % 20))
+lines_per_file=$((total_lines / 15))
+remainder=$((total_lines % 15))
 
 echo "total line: $total_lines"
 echo "lines_pser_file: $lines_per_file"
@@ -33,7 +34,7 @@ echo "remainder: $remainder"
 if [ $lines_per_file -gt 0 ]; then
     split -l "$lines_per_file" "$input_file" $output_file_prefix
 else
-    echo "Error: The file is empty or has fewer than 20 lines."
+    echo "Error: The file is empty or has fewer than 15 lines."
     exit 1
 fi
 
@@ -42,4 +43,4 @@ if [ $remainder -gt 0 ]; then
     tail -n "$remainder" "$input_file" >> "${output_file_prefix}aa"
 fi
 
-echo "File divided into 20 parts with remainder lines included."
+echo "File divided into 15 parts with remainder lines included."

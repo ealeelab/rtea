@@ -21,6 +21,6 @@ destination_directory=$(realpath "$destination_directory")
 directories_at_depth_2=$(find "$destination_directory" -maxdepth 2 -mindepth 2 -type d -exec realpath {} \;)
 
 # Print the result
-echo "Real paths of directories at depth 2:"
+#echo "Real paths of directories at depth 2:"
 echo "$directories_at_depth_2"
 
