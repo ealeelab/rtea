@@ -1,8 +1,8 @@
 #!/bin/bash
 
 # Define the source and destination directories
-sourceDirectory="/path/to/sourceDirectory"
-destinationDirectory="/path/to/destinationDirectory"
+sourceDirectory="/BiO/data/PROJECT/HMS/temp/TCGA"
+destinationDirectory="/BiO/data/PROJECT/HMS/tcga"
 
 # Check if the source directory exists
 if [[ ! -d "$sourceDirectory" ]]; then
@@ -31,11 +31,12 @@ for sampleGroup in "$sourceDirectory"/*/; do
         #mkdir -p "$targetDir"
 
         # Copy the *.rtea.depth.text files to corresponding directory in destinationDirectory
-        filesToCopy=("$sampleID"*.rtea.depth.text)
-        if [ ${#filesToCopy[@]} -gt 0 ]; then
-            cp "${filesToCopy[@]}" "$targetDir"
+        fileToCopy=${sourceDirectory}/${sampleGroupName}/${sampleIDName}/${sampleIDName}.hisat2.rtea.depth.txt
+        echo $fileToCopy
+        if [ -f $fileToCopy ]; then
+            cp "$fileToCopy" "$targetDir"
         else
-            echo "No files to copy for $sampleGroupName/$sampleIDName"
+            echo "No files to copy for $fileToCopy"
         fi
     done
 done
