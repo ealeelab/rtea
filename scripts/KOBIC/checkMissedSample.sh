@@ -21,11 +21,18 @@ for sampleGroup in "$sourceDirectory"/*/; do
 
         # Copy the *.rtea.depth.text files to corresponding directory in destinationDirectory
         fileToCheck=${sourceDirectory}/${sampleGroupName}/${sampleIDName}/${sampleIDName}.hisat2.rtea.depth.txt
-        if [ -f $fileToCheck ]; then
-            if [ -f ${sourceDirectory}/${sampleGroupName}/${sampleIDName}/${sampleIDName}.hisat2.bam ]; then
+        if ! [ -f $fileToCheck ]; then
+            if ! [ -f ${sourceDirectory}/${sampleGroupName}/${sampleIDName}/${sampleIDName}.hisat2.bam ]; then
                 echo "${sourceDirectory}/${sampleGroupName}/${sampleIDName}/${sampleIDName}.hisat2.bam is not exist"
             else
-                echo ${sourceDirectory}/${sampleGroupName}/${sampleIDName}
+                if ! [ -f ${sourceDirectory}/${sampleGroupName}/${sampleIDName}/${sampleIDName}.rtea.txt ]; then
+                    echo "${sourceDirectory}/${sampleGroupName}/${sampleIDName}/${sampleIDName}.rtea.txt is not exist"
+
+                #else
+
+
+                    #echo ${sourceDirectory}/${sampleGroupName}/${sampleIDName}
+                fi
             fi
         fi
     done
