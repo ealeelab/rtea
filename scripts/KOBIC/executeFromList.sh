@@ -1,6 +1,6 @@
 #!/bin/bash
 #$ -q kobic.q
-#$ -N copm_depth
+#$ -N tcga_depth
 #$ -e /BiO/scratch/users/aleelab/logs
 #$ -o /BiO/scratch/users/aleelab/logs
 #$ -S /bin/bash
@@ -24,7 +24,7 @@ conda activate rtea
 PATH=/home/aleelab/rtea/bin:$PATH
 SAVED_PATH=/BiO/scratch/users/aleelab
 
-REPO_NAME="COPM"
+REPO_NAME="TCGA"
 CORES=4
 
 # Check if the correct number of arguments is provided
@@ -48,7 +48,7 @@ while IFS= read -r line; do
     # Extract the components using parameter expansion
     full_line="$line"
     sampleName="${line##*/}"
-    sampleName=$(echo "$sampleName" | cut -d'.' -f1)
+    #sampleName=$(echo "$sampleName" | cut -d'.' -f1)
 
 
     sampleGroup="${line%/*}"
@@ -61,7 +61,7 @@ while IFS= read -r line; do
 
     # Create directory
     OUTPUT_DIR="${SAVED_PATH}/${REPO_NAME}/${sampleGroup}/${sampleName}"
-    OUTPUT_DIR="${SAVED_PATH}/${REPO_NAME}/${sampleGroup}"
+    #OUTPUT_DIR="${SAVED_PATH}/${REPO_NAME}/${sampleGroup}"
     echo "Output Dir: $OUTPUT_DIR"
 
     if [ ! -d "$OUTPUT_DIR" ]; then
@@ -74,7 +74,7 @@ while IFS= read -r line; do
     fi 
 
     # Program Start
-    line=$(dirname "$line")
+    #line=$(dirname "$line")
 
     if [ -f "${OUTPUT_DIR}/${sampleName}.hisat2.rtea.depth.txt" ]; then
         echo "The file ${sampleName}.hisat2.rtea.depth.txt exists. Continuing with further actions."

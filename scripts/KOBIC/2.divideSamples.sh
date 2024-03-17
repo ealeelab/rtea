@@ -2,7 +2,7 @@
 # Specify the input file
 
 # Check if the correct number of arguments is provided
-output_file_prefix=copm_
+output_file_prefix=TCGA_
 
 if [ "$#" -ne 1 ]; then
     echo "Usage: $0 <sample list>"
@@ -10,7 +10,7 @@ if [ "$#" -ne 1 ]; then
 fi
 
 input_file="$1"
-devide_num=15
+devide_num=5
 
 
 echo $input_file

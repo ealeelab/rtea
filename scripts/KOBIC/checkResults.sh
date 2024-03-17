@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Define the source and destination directories
-sourceDirectory="/BiO/data/PROJECT/HMS/ICGC"
+sourceDirectory="/BiO/data/PROJECT/HMS/TCGA"
 
 # Check if the source directory exists
 if [[ ! -d "$sourceDirectory" ]]; then
@@ -10,13 +10,13 @@ if [[ ! -d "$sourceDirectory" ]]; then
 fi
 
 # Loop through the subdirectories of sourceDirectory where subdirectories are sampleGroup
-#for sampleGroup in "$sourceDirectory"/*/; do
+for sampleGroup in "$sourceDirectory"/*/; do
     # Get the name of the sampleGroup (basename of the directory path)
-#    sampleGroupName=$(basename "$sampleGroup")
+    sampleGroupName=$(basename "$sampleGroup")
 
     # Loop through subdirectories of sampleGroup which represent sampleID
-    #for sampleID in "$sampleGroup"*/; do
-    for sampleID in "$sourceDirectory"/*/; do #COPM and ICGC
+    for sampleID in "$sampleGroup"*/; do
+    #for sampleID in "$sourceDirectory"/*/; do #COPM and ICGC
         # Get the name of the sampleID (basename of the directory path)
         sampleIDName=$(basename "$sampleID")
 
@@ -52,5 +52,5 @@ fi
         fi
         echo -e "$targetDir\t$sampleGroupName\t$sampleIDName\t$bam_existence\t$rtea_txt_existence\t$rtea_depth_txt_existence"
     done
-#done
+done
 

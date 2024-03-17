@@ -1,8 +1,8 @@
 #!/bin/bash
 
 # Define the source and destination directories
-sourceDirectory="/BiO/data/PROJECT/HMS/temp/TCGA"
-destinationDirectory="/BiO/data/PROJECT/HMS/TCGA"
+sourceDirectory="/BiO/scratch/users/aleelab/ICGC"
+destinationDirectory="/BiO/data/PROJECT/HMS"
 
 # Check if the source directory exists
 if [[ ! -d "$sourceDirectory" ]]; then
@@ -34,7 +34,8 @@ for sampleGroup in "$sourceDirectory"/*/; do
         fileToCopy=${sourceDirectory}/${sampleGroupName}/${sampleIDName}/${sampleIDName}.hisat2.rtea.depth.txt
         #echo $fileToCopy
         if [ -f $fileToCopy ]; then
-            echo $fileToCopy  
+            echo "from:$fileToCopy"
+            echo "to:$targetDir"
             cp "$fileToCopy" "$targetDir"
         else
             echo "No files to copy for $fileToCopy"
