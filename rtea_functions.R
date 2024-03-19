@@ -315,15 +315,21 @@ checkStrandedness <- function(bamfile, edbpkg = edbPKG) {
   isfirst <- sapply(sam, `[[`, "flag") %>% unlist %>% bamFlagTest("isFirstMateRead")
   rstrand <- sapply(sam, `[[`, "strand") %>% unlist
   gstrand <- rep(strand(hemc), sapply(sam, function(x) length(x[[1]]))) %>% as.factor
-  stat <- fisher.test(table(isfirst, rstrand == gstrand))
-  stranded <- stat$p.value < .05 & abs(log2(stat$estimate)) > 2
-  if(!stranded) {
-    "non-stranded"
+  tbl <- table(isfirst, rstrand == gstrand)
+  
+  if(dim(tbl)[1] < 2 | dim(tbl)[2] < 2) {
+    return("non-stranded")
   } else {
-    if(mean(isfirst[rstrand == gstrand]) > 0.5) {
-      "first-sense"
+    stat <- fisher.test(tbl)
+    stranded <- stat$p.value < .05 & abs(log2(stat$estimate)) > 2
+    if(!stranded) {
+      "non-stranded"
     } else {
-      "first-antisense"
+      if(mean(isfirst[rstrand == gstrand]) > 0.5) {
+        "first-sense"
+      } else {
+        "first-antisense"
+      }
     }
   }
 
