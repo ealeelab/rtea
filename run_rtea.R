@@ -69,6 +69,20 @@ rtea <- localHardClip(rtea, threads = threads)
 rtea <- fusiontype(rtea)
 rtea <- cntFilter.ctea(rtea)
 
+colSelect <- c("chr", "pos", "ori", "class", "seq",
+               "isPolyA", "posRepFamily", "posRep", 
+               "TEfamily", "TEscore", "TEside", "TEbreak",
+               "depth", "matchCnt", "VAF",
+               "polyAcnt", "baseQual", "lowMapQual", "mateDist",
+               "overhang", "gap", 
+               "secondary", "nonspecificTE", "r1pstrand",
+               "strand", "pos_type", "polyTE",
+               "hardstart", "hardend", "hardTE", "hardDist",
+               "fusion_tx_id", "tx_support_exon", "tx_support_intron",
+               "fusion_type", "fusion_tx_biotype", "fusion_gene_id", "fusion_gene_name",
+               "Filter")
+rtea <- rtea[, colSelect, with = F]
+
 writeLines(paste("Writing result to", outfile))
 print(head(rtea))
 fwrite(rtea, outfile, sep="\t", na="NA", quote=F)
