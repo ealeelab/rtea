@@ -36,6 +36,9 @@ reattach <- function() {
 getmode <- function(v) {
   uniqv <- unique(v)
   uniqv[which.max(tabulate(match(v, uniqv)))]
+  modev <- uniqv[which.max(tabulate(match(v, uniqv)))]
+  attributes(modev) <- attributes(v)
+  modev
 }
 
 pastechr <- function(x) {
@@ -170,26 +173,35 @@ repeatPositon.ctea <- function(ctea, clip_width = 5L) {
 
 #' @export
 filterSimpleSite <- function(ctea,
+                             threads = getOption("mc.cores", getDTthreads()),
                              Alength = 10, percentA = 0.8,
-                             refAlength = 20, refPercentA = 0.8) {
+                             refAlength = 20, refPercentA = 0.8,
+                             matchscore_cutoff = 0) {
+  library(stringr)
+  library(Biostrings)
+  require(bsgenomePKG,  character.only = T)
+  genome <- get(bsgenomePKG)
+  
+  popt <- options(mc.cores = threads)
+  on.exit(options(popt))
+  
   if(!exists("posRep", ctea)) {
     ctea <- repeatPosition.ctea(ctea)
   }
-  require(bsgenomePKG,  character.only = T)
-  genome <- get(bsgenomePKG)
+  
   st <- ctea[, pmax(ifelse(ori == "f", pos + 1, pos - refAlength),
                     0
-                    )
-             ]
+  )
+  ]
   en <- ctea[, pmin(ifelse(ori == "f", pos + refAlength, pos - 1),
                     seqlengths(genome)[pastechr(chr)]
-                    )
-             ]
-  refrootseq <- ctea[, getSeq(genome, pastechr(chr), st, en)] %>% as.character
-
+  )
+  ]
+  refrootseq <- ctea[, getSeq(genome, pastechr(chr), st, en)]
+  
   Asite <- stringr::str_count(refrootseq, "A") / refAlength >= refPercentA
   Tsite <- stringr::str_count(refrootseq, "T") / refAlength >= refPercentA
-
+  
   proxseq <- ctea[, ifelse(ori == "f",
                            stringr::str_sub(seq, start = -Alength),
                            stringr::str_sub(seq, end = Alength)
@@ -197,7 +209,16 @@ filterSimpleSite <- function(ctea,
   Aprop <- stringr::str_count(proxseq, "A") / Alength
   Tprop <- stringr::str_count(proxseq, "T") / Alength
   simpleSite <- (Asite & Aprop >= percentA) | (Tsite & Tprop >= percentA)
-  ctea[simpleSite == F]
+  ctea <- ctea[simpleSite == F]
+  
+  ctea[posRepFamily == "Simple_repeat", repeatseq := str_extract(posRep, "(?<=[(])[ATGC]+(?=[)]n)")]
+  ctea[posRepFamily == "Simple_repeat", seqtomatch := str_dup(repeatseq, nchar(seq) / nchar(repeatseq))]
+  ctea[posRepFamily == "Simple_repeat",
+       matchscore := mcmapply(pairwiseAlignment,
+                              seqtomatch,
+                              seq,
+                              type = "global-local") %>% mclapply(score) %>% unlist]
+  ctea[is.na(matchscore) | matchscore < matchscore_cutoff, !c("repeatseq", "seqtomatch", "matchscore")]
 }
 
 filterTEsite.ctea <- function(ctea, clip_width = 5,
@@ -642,19 +663,13 @@ compareClippedSeq <- function(sseq, seq, ori,
   sseq[longseq] <- subseqprox(sseq[longseq], nchar(seq))
   sseq[nchar(sseq) < min_length] <- "N"
   gseq <- if(ori == "f") {
-    paste0(stringr::str_dup(".", nchar(seq) - nchar(sseq)), sseq)
+    paste0(stringr::str_dup("N", nchar(seq) - nchar(sseq)), sseq)
   } else {
-    paste0(sseq, stringr::str_dup(".", nchar(seq) - nchar(sseq)))
+    paste0(sseq, stringr::str_dup("N", nchar(seq) - nchar(sseq)))
   }
-  # seq %<>% DNAStringSet
-  # matchscore <- nucleotideSubstitutionMatrix(match = 0, mismatch = 1, baseOnly = TRUE) %>%
-  #   cbind(N = 0, . = 0) %>%
-  #   rbind(N = 0, . = 0)
-  # differ <- sapply(gseq, function(x) {
-  #   stringDist(c(seq, x), method = "substitutionMatrix", substitutionMatrix = matchscore, gapOpening = 100)
-  # }) / nchar(sseq)
+  
   seqm <- strsplit(gseq, "") %>% do.call(rbind, .)
-  seqm[seqm %in% c(".", "N")] <- NA
+  seqm[seqm == "N"] <- NA_character_
   differ <- sweep(seqm, 2, strsplit(seq, "")[[1]], "!=") %>% rowSums(na.rm = T) %>% {. / nchar(sseq)}
   if(nchar(seq) < 2) shift_range <- 0
   if(shift_range <= 0) {
@@ -669,7 +684,8 @@ compareClippedSeq <- function(sseq, seq, ori,
       compareClippedSeq(shiftseq(sseq), seq, ori,
                         shift_range = shift_range - 1,
                         shift_dir = "prox",
-                        min_length = min_length + 1)
+                        min_length = min_length + 1),
+      na.rm = T
     )
   } else {
     if(shift_dir == "dist") {
@@ -1068,105 +1084,164 @@ calculateDepth.rtea <- function(rtea, bamfile, width = 10L, threads = getOption(
 }
 
 
-# unique.rtea <- function(rtea,
-#                         overhang_cutoff = 10L,
-#                         maxgap = 10L,
-#                         alignscore_cutoff = 20,
-#                         verbose = getOption("verbose", F)) {
-#   # To do: can be parallelized over same groups
-#   library(GenomicRanges)
-#   library(Biostrings)
-#   ungappos <- ungapPos.rtea(rtea, overhang_cutoff = overhang_cutoff)
-#   rgr <- rtea[, GRanges(chr, IRanges(ungappos, ungappos), ifelse(ori == "f", "+", "-"))]
-#   ovlap <- findOverlaps(rgr, rgr, maxgap = maxgap)
-#   ovlap %<>% .[queryHits(.) < subjectHits(.)]
-#
-#   msg("Finding duplicates...")
-#   for(i in seq_along(ovlap)) {
-#     if(verbose) {
-#       cat(sprintf("\r%0.2f%%          ", i/length(ovlap)*100))
-#     }
-#
-#     queryIdx <- queryHits(ovlap[i])
-#     subjectIdx <- subjectHits(ovlap[i])
-#
-#     if(rtea[queryIdx, is.na(TEscore)] |
-#        rtea[subjectIdx, is.na(TEscore)] |
-#        rtea[queryIdx, class] != rtea[subjectIdx, class]) {
-#       next
-#     }
-#
-#     if(rtea[c(queryIdx, subjectIdx), all(grepl("^A+$", seq)) | all(grepl("^T+$", seq))]) {
-#       queryselect <- rtea[queryIdx, nchar(seq)] > rtea[subjectIdx, nchar(seq)]
-#       if(rtea[queryIdx, nchar(seq)] == rtea[subjectIdx, nchar(seq)]) {
-#         queryselect <- rtea[queryIdx, uniqueCnt] >= rtea[subjectIdx, uniqueCnt]
-#       }
-#     } else {
-#       align <- pairwiseAlignment(rtea[queryIdx, seq], rtea[subjectIdx, seq], type = "local")
-#       if(score(align) < alignscore_cutoff) {
-#         next
-#       }
-#       queryselect <- rtea[queryIdx, TEscore] > rtea[subjectIdx, TEscore]
-#       if(rtea[queryIdx, TEscore] == rtea[subjectIdx, TEscore]) {
-#         queryselect <- rtea[queryIdx, uniqueCnt] >= rtea[subjectIdx, uniqueCnt]
-#       }
-#     }
-#
-#     if(queryselect) {
-#       rtea[subjectIdx, ] <- rtea[queryIdx, ]
-#     } else {
-#       rtea[queryIdx, ] <- rtea[subjectIdx, ]
-#     }
-#   }
-#
-#   unique(rtea)
-#
-# }
-
 unique.rtea <- function(rtea, ...) {
   dup <- duplicate.rtea(rtea, ...)
   rtea[is.na(dup) | dup == seq_along(dup)]
 }
 
 duplicate.rtea <- function(rtea,
-                        overhang_cutoff = 10L,
-                        maxgap = 10L,
-                        threads = 1) {
+                           selectbest = T,
+                           verbose = getOption("verbose", F),
+                           overhang_cutoff = 10L,
+                           maxgap = 5L,
+                           seqmatch_shift_range = maxgap,
+                           seqmatch_cutoff = 0.7,
+                           threads = 1) {
+  require(bsgenomePKG,  character.only = T)
+  genome <- get(bsgenomePKG)
   library(GenomicRanges)
   library(Biostrings)
+  library(BiocParallel)
   opt <- options(mc.cores = threads)
-  on.exit(options(opt))
-
+  prevthreads <- setDTthreads(threads)
+  on.exit({
+    options(opt)
+    setDTthreads(prevthreads)
+  })
+  
+  # finding positional overlap
+  if(verbose) msg("Finding positional overlaps...")
   ungappos <- ungapPos.rtea(rtea, overhang_cutoff = overhang_cutoff)
-  rgr <- rtea[, GRanges(chr, IRanges(pos, pos), ifelse(ori == "f", "+", "-"))]
-  ugrgr <- rtea[, GRanges(chr, IRanges(ungappos, ungappos), ifelse(ori == "f", "+", "-"))]
-  ovlap <- findOverlaps(rgr, rgr, maxgap = 10L, select = "all")
-  ugovlap <- findOverlaps(ugrgr, ugrgr, maxgap = 10L, select = "all")
-  ovlist <- Map(union, as.list(ovlap), as.list(ugovlap))
-
-  lowgrp <-mclapply(ovlist, function(x) min(unlist(ovlist[x]))) %>% unlist
+  overhangint <- rtea[, floor(overhang)]
+  posmatch <- function(locdt, ...) {
+    uniqloc <- locdt[, .(idx = list(.I)), by = .(chr, pos, ori)]
+    rgr <- uniqloc[, GRanges(chr, IRanges(pos, pos), ifelse(ori == "f", "+", "-"))]
+    ovl <- findOverlaps(rgr, drop.self = T, ...)
+    uniqloc[, ovlidx := mclapply(ovl, function(x) unlist(idx[x]))]
+    
+    filterovl <- function(idx1, idx2, verbose = getOption("verbose", F)) {
+      select <- idx1 < idx2
+      idx1 %<>% .[select]
+      idx2 %<>% .[select]
+      rm(select)
+      gc()
+      data.table(idx1, idx2, posgap = locdt[idx2, pos] - locdt[idx1, pos])
+    }
+    idx1 <- uniqloc[, rep(unlist(idx), rep(elementNROWS(ovlidx), elementNROWS(idx)))]
+    idx2 <- uniqloc[, rep(ovlidx, elementNROWS(idx)) %>% unlist]
+    if(is.null(idx2)) idx2 <- integer(0)
+    gapovlap <- filterovl(idx1, idx2)
+    
+    posovlap <- filterovl(
+      uniqloc[elementNROWS(idx) > 1L, rep(unlist(idx), rep(elementNROWS(idx), elementNROWS(idx)))],
+      uniqloc[elementNROWS(idx) > 1L, rep(idx, elementNROWS(idx)) %>% unlist]
+    )
+    
+    rbind(gapovlap, posovlap)
+  }
+  ovlap <- posmatch(rtea[, .(chr, pos, ori, seq)], maxgap = maxgap)
+  ugovlap <- posmatch(data.table(rtea[, .(chr, ori, seq)], pos = ungappos), maxgap = maxgap)
+  ovlap %<>% funion(ugovlap)
+  
+  # get base sequence
+  if(verbose) msg("Getting extended sequence ...")
+  baseseqdt <- data.table(rtea[, .(chr, pos, ori)], overhangint, ungappos) %>%
+    .[unique(ovlap[, c(idx1, idx2)]), ] %>%
+    unique
+  baseseqdt[ori == "f", start := pos + 1]
+  baseseqdt[ori == "f", end := pos + maxgap + 1]
+  baseseqdt[ori == "r", start := pos - maxgap - 1]
+  baseseqdt[ori == "r", end := pos - 1]
+  baseseqdt[ori == "f" & overhangint <= maxgap + 1, end := pos + overhangint]
+  baseseqdt[ori == "f" & overhangint <= maxgap + 1, start2 := ungappos + overhangint + 1]
+  baseseqdt[ori == "f" & overhangint <= maxgap + 1, end2 := ungappos + maxgap + 1]
+  baseseqdt[ori == "r" & overhangint <= maxgap + 1, start := pos - overhangint]
+  baseseqdt[ori == "r" & overhangint <= maxgap + 1, start2 := ungappos - maxgap - 1]
+  baseseqdt[ori == "r" & overhangint <= maxgap + 1, end2 := ungappos - overhangint - 1]
+  baseseqdt$seq <- bpvec(
+    seq_len(nrow(baseseqdt)),
+    function(i) baseseqdt[i, getSeq(genome, pastechr(chr), start, end)],
+    BPPARAM = MulticoreParam(workers = threads)
+  ) %>% as.character
+  baseseqdt[overhangint <= maxgap + 1,
+            seq2 := bpvec(seq_along(start2),
+                          function(i) getSeq(genome, pastechr(chr[i]), start2[i], end2[i]),
+                          BPPARAM = MulticoreParam(workers = threads)
+            ) %>% as.character]
+  baseseqdt[ori == "f" & overhangint <= maxgap + 1, seq := paste0(seq, seq2)]
+  baseseqdt[ori == "r" & overhangint <= maxgap + 1, seq := paste0(seq2, seq)]
+  baseseqdt[, c("start", "end", "start2", "end2", "seq2") := NULL]
+  
+  ovlap[, c("chr", "ori", "pos1", "seq1") := rtea[idx1, .(chr, ori, pos, seq)]]
+  ovlap[, c("pos2", "seq2") := rtea[idx2, .(pos, seq)]]
+  ovlap[, overhangint1 := overhangint[idx1]]
+  ovlap[, overhangint2 := overhangint[idx2]]
+  ovlap[, ungappos1 := ungappos[idx1]]
+  ovlap[, ungappos2 := ungappos[idx2]]
+  ovlap %<>% merge(baseseqdt,
+                   by.x = c("chr", "pos1", "ori", "overhangint1", "ungappos1"),
+                   by.y = c("chr", "pos", "ori", "overhangint", "ungappos"))
+  setnames(ovlap, "seq", "baseseq1")
+  ovlap %<>% merge(baseseqdt,
+                   by.x = c("chr", "pos2", "ori", "overhangint2", "ungappos2"),
+                   by.y = c("chr", "pos", "ori", "overhangint", "ungappos"))
+  setnames(ovlap, "seq", "baseseq2")
+  ovlap[, c("chr", "pos1", "pos2", "overhangint1", "overhangint2", "ungappos1", "ungappos2") := NULL]
+  ovlap[ori == "f" & posgap > 0, seq1 := paste0(seq1, stringi::stri_sub(baseseq1, 1, posgap))]
+  ovlap[ori == "f" & posgap < 0, seq2 := paste0(seq2, stringi::stri_sub(baseseq2, 1, posgap))]
+  ovlap[ori == "r" & posgap > 0, seq2 := paste0(stringi::stri_sub(baseseq2, -posgap), seq2)]
+  ovlap[ori == "r" & posgap < 0, seq1 := paste0(stringi::stri_sub(baseseq1, -posgap), seq1)]
+  ovlap[, c("baseseq1", "baseseq2") := NULL]
+  ovlap %<>% .[, .(idx1 = list(idx1), idx2 = list(idx2)), by = .(seq1, seq2, ori)]
+  # comparing sequences
+  if(verbose) msg("Comparing sequences...")
+  ovlap$seqmatch <- bptry(bpvec(
+    seq_len(nrow(ovlap)),
+    function(i) {
+      gc()
+      ovlap[i, pSeqMatchRatio(seq1, seq2, ori, shift_range = seqmatch_shift_range)]
+    },
+    BPPARAM = MulticoreParam(workers = threads, tasks = nrow(ovlap) / 1e5, log = verbose)
+  ))
+  ovlap %<>% .[seqmatch >= seqmatch_cutoff]
+  
+  # finding lowest idx
+  if(verbose) msg("Finding lowest idx...")
+  ovlist <- ovlap[, S4Vectors::SelfHits(c(seq_len(nrow(rtea)), unlist(idx1), unlist(idx2)),
+                                        c(seq_len(nrow(rtea)), unlist(idx2), unlist(idx1)),
+                                        nrow(rtea))] %>% as.list
+  lowgrp <- mclapply(ovlist, function(x) min(unlist(ovlist[x]))) %>% unlist
   grp <- mclapply(ovlist, function(x) min(lowgrp[x])) %>% unlist
   while(!identical(lowgrp, grp)) {
     lowgrp <- grp
     grp <- mclapply(ovlist, function(x) min(lowgrp[x])) %>% unlist
   }
   dupgrp <- which(table(grp) > 1) %>% names %>% as.integer
-
-  bestone <- mclapply(dupgrp, function(g) {
-    idx <- which(grp == g)
-    highscore <- rtea[idx, TEscore] %>% {idx[. == max(., na.rm = T)]} %>% na.omit
-    if(length(highscore) == 0) {
-      highscore <- idx
-    }
-    highcnt <- rtea[highscore, uniqueCnt] %>% {highscore[. == max(.)]}
-    prox <- if(rtea[highcnt, ori][1] == "f") {
-      rtea[highcnt, pos] %>% {highcnt[. == max(.)]}
-    } else {
-      rtea[highcnt, pos] %>% {highcnt[. == min(.)]}
-    }
-    prox[1]
-  }) %>% unlist
-  bestone[match(grp, dupgrp)]
+  
+  if(selectbest) {
+    if(verbose) msg("Selecting best idx...")
+    bestone <- mclapply(dupgrp, function(g) {
+      idx <- which(grp == g)
+      passed <- idx[rtea[idx, Filter == "PASS"]]
+      if(length(passed) == 0) passed <- idx
+      highscore <- rtea[passed, TEscore] %>% {
+        passed[. == suppressWarnings(max(., na.rm = T))]} %>%
+        na.omit
+      if(length(highscore) == 0) highscore <- passed
+      highcnt <- rtea[highscore, uniqueCnt] %>% {highscore[. == max(.)]}
+      prox <- if(rtea[highcnt, ori][1] == "f") {
+        rtea[highcnt, pos] %>% {highcnt[. == max(.)]}
+      } else {
+        rtea[highcnt, pos] %>% {highcnt[. == min(.)]}
+      }
+      prox[1]
+    }) %>% unlist
+    bestone[match(grp, dupgrp)]
+  } else {
+    grp[!grp %in% dupgrp] <- NA
+    grp
+  }
+  
 }
 
 matchScallop.ctea <- function(ctea, scallopfile, matchrange = 300, overhangmin = 5) {
@@ -1267,7 +1342,7 @@ fusiontype <- function(rtea, tx_id = rtea$fusion_tx_id,
                    rtea[, .(ori, hardstart, hardend)],
                    tx[tx_id, on = "tx_id"]
   )
-  dt[is.na(tx_id), fusion_type := "novel transcript"]
+  dt[is.na(tx_id), fusion_type := "intergenic"]
   dt[(ori == "f" & ugpos > end) | (ori == "r" & ugpos < start), fusion_type := "impossible"]
   dt[between(ugpos, start, end, NAbounds = NA), fusion_type := "exonic/exonization"]
   dt[(ori == "f" & pmin(ugpos, hardstart, na.rm = T) < start),
